@@ -1,8 +1,6 @@
-import tkinter as tk
-from tkinter import messagebox
+import streamlit as st
 import random
 from datetime import datetime, timedelta
-
 # --- データ ---
 time_ranges = {
     1: ("8:15", "10:30"),
