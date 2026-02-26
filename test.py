@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 from datetime import datetime, timedelta
+
 # --- データ ---
 time_ranges = {
     1: ("8:15", "10:30"),
@@ -21,7 +22,9 @@ age_groups = {
 regions = ["完全一緒", "近隣1", "近隣2", "近隣3"]
 region_weights = [44, 44, 10, 2]
 
-history = []
+# 履歴保存（セッション管理）
+if "history" not in st.session_state:
+    st.session_state.history = []
 
 # --- ランダム時間生成 ---
 def random_time(start, end):
@@ -38,16 +41,18 @@ def random_time(start, end):
     result = start_dt + timedelta(minutes=random_minute)
     return result.strftime("%H:%M")
 
-# --- 生成処理 ---
-def generate():
-    selected = [i+1 for i, var in enumerate(time_vars) if var.get()]
+# --- 画面 ---
+st.title("ランダム生成アプリ")
 
-    if len(selected) != 1:
-        messagebox.showerror("エラー", "時間枠を1つ選択してください（必須）")
-        return
+selected_time = st.radio(
+    "時間枠を1つ選択（必須）",
+    options=list(time_ranges.keys()),
+    format_func=lambda x: f"{time_ranges[x][0]}〜{time_ranges[x][1]}"
+)
 
-    time_key = selected[0]
-    start, end = time_ranges[time_key]
+if st.button("生成する"):
+
+    start, end = time_ranges[selected_time]
     rand_time = random_time(start, end)
 
     age_group = random.choice(list(age_groups.keys()))
@@ -57,47 +62,15 @@ def generate():
 
     result_text = f"{rand_time}　{rand_age}　{rand_region}"
 
-    history.insert(0, result_text)
+    st.session_state.history.insert(0, result_text)
 
-    if len(history) > 20:
-        history.pop()
+    if len(st.session_state.history) > 20:
+        st.session_state.history.pop()
 
-    update_history_display()
+# 履歴表示
+st.subheader("履歴（最大20件）")
+for item in st.session_state.history:
+    st.write(item)
 
-# --- 履歴表示更新 ---
-def update_history_display():
-    history_box.delete(0, tk.END)
-    for item in history:
-        history_box.insert(tk.END, item)
-
-# --- 履歴クリア ---
-def clear_history():
-    history.clear()
-    update_history_display()
-
-# --- GUI ---
-root = tk.Tk()
-root.title("ランダム生成GUI")
-root.geometry("500x500")
-
-tk.Label(root, text="時間枠を選択（必須）").pack()
-
-time_vars = []
-for i in range(1, 6):
-    var = tk.BooleanVar()
-    time_vars.append(var)
-    tk.Checkbutton(
-        root,
-        text=f"{time_ranges[i][0]}〜{time_ranges[i][1]}",
-        variable=var
-    ).pack(anchor="w")
-
-tk.Button(root, text="生成する", command=generate).pack(pady=5)
-tk.Button(root, text="履歴クリア", command=clear_history).pack(pady=5)
-
-tk.Label(root, text="履歴（最大20件）").pack()
-
-history_box = tk.Listbox(root, width=70, height=15)
-history_box.pack(pady=10)
-
-root.mainloop()
+if st.button("履歴クリア"):
+    st.session_state.history = []
