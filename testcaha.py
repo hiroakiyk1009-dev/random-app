@@ -4,7 +4,8 @@ import random
 from PIL import Image
 import json
 from datetime import datetime
-
+import streamlit as st
+st.write(genai.list_models())
 # ==============================
 # API設定
 # ==============================
