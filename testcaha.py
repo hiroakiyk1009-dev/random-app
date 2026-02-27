@@ -1,218 +1,174 @@
-import streamlit as st
 import google.generativeai as genai
-import random
-from PIL import Image
-import io
-import json
-from datetime import datetime
 
-# ==============================
-# API設定（無料枠安定）
-# ==============================
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+# ==========================
+# APIキー設定
+# ==========================
+genai.configure(api_key="AIzaSyCiIq432KyBKaFSNUdxOylDFP9LwXAGD1I")
 
-model = genai.GenerativeModel(
-    "models/gemini-2.5-flash",
-    generation_config={
-        "temperature": 0.85,
-        "top_p": 0.9,
-        "max_output_tokens": 800,
-        "response_mime_type": "application/json"  # JSON固定
-    },
-)
+model = genai.GenerativeModel("models/gemini-2.5-flash")
 
-text_model = genai.GenerativeModel(
-    "models/gemini-2.5-flash",
-    generation_config={
-        "temperature": 0.9,
-        "top_p": 0.95,
-        "max_output_tokens": 700,
-    },
-)
+# ==========================
+# 雰囲気レベル変換
+# ==========================
+def tone_level_to_text(level: int):
+    tone_map = {
+        1: "非常に落ち着き重視。感情表現は最小限。",
+        2: "やや控えめ。上品で穏やか。",
+        3: "自然で親しみやすい標準的な表現。",
+        4: "感情豊かで柔らかい表現。",
+        5: "かなり感情豊かで印象的。"
+    }
+    return tone_map.get(level, tone_map[3])
 
-st.set_page_config(page_title="AIキャラ生成", layout="wide")
+# ==========================
+# 色気レベル変換
+# ==========================
+def sexiness_to_text(level: int):
+    sex_map = {
+        0: "色気は出さない。",
+        1: "ほんのり大人の余裕を感じさせる。",
+        2: "自然な色気を上品に含める。",
+        3: "大人の魅力をはっきりと表現する。"
+    }
+    return sex_map.get(level, sex_map[0])
 
-if "character" not in st.session_state:
-    st.session_state.character = None
-
-# ==============================
-# 生年月日生成
-# ==============================
-def generate_birthday(age):
-    today = datetime.today()
-    birth_year = today.year - age
-    random_day = datetime(
-        birth_year,
-        random.randint(1, 12),
-        random.randint(1, 28)
-    )
-    return random_day.strftime("%Y年%m月%d日")
-
-# ==============================
-# 画像分析（JSON強制）
-# ==============================
-def analyze_image(image):
-
-    prompt = """
-以下のキーのみを含むJSONのみを出力せよ。
-説明文・前置き・補足は禁止。
-
-{
- "雰囲気":"",
- "推定職業":"",
- "推定趣味":"",
- "乗っていそうな車":"",
- "休日の過ごし方":"",
- "婚歴":"",
- "使いそうな顔文字":""
-}
-"""
-
-    img_byte_arr = io.BytesIO()
-    image.save(img_byte_arr, format="JPEG")
-    img_bytes = img_byte_arr.getvalue()
-
+# ==========================
+# 共通生成関数（安定仕様）
+# ==========================
+def generate_text(prompt, max_tokens=1000):
     response = model.generate_content(
-        [
-            prompt,
-            {
-                "mime_type": "image/jpeg",
-                "data": img_bytes
-            }
-        ]
-    )
-
-    try:
-        return json.loads(response.text)
-    except:
-        return {
-            "雰囲気": "落ち着いた大人の女性",
-            "推定職業": "会社員",
-            "推定趣味": "カフェ巡り",
-            "乗っていそうな車": "レクサスNX",
-            "休日の過ごし方": "ショッピング",
-            "婚歴": "独身",
-            "使いそうな顔文字": "😊"
+        prompt,
+        generation_config={
+            "temperature": 0.8,
+            "top_p": 0.9,
+            "max_output_tokens": max_tokens
         }
-
-# ==============================
-# 文章生成（前置き禁止）
-# ==============================
-def generate_clean_text(instruction):
-
-    prompt = f"""
-以下の条件で文章のみ出力せよ。
-前置き禁止
-説明禁止
-箇条書き禁止
-
-{instruction}
-"""
-
-    response = text_model.generate_content(prompt)
+    )
     return response.text.strip()
 
-# ==============================
-# UI
-# ==============================
-st.title("💖 AI女性キャラ完全自動生成")
+# ==========================
+# 自己紹介生成
+# ==========================
+def generate_self_intro(profile, tone_level=3, sexy_level=0, long_mode=False):
 
-uploaded_file = st.file_uploader("画像アップロード", type=["jpg","png","jpeg"])
+    tone_text = tone_level_to_text(tone_level)
+    sexy_text = sexiness_to_text(sexy_level)
 
-age_option = st.radio("年齢設定", ["ランダム", "自分で指定"])
+    length_instruction = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
 
-if age_option == "自分で指定":
-    age = st.slider("年齢選択", 20, 70, 35)
-else:
-    age = random.randint(20, 70)
+    prompt = f"""
+あなたは以下の女性です。
 
-st.subheader("🎛 性格パラメータ")
+{profile}
 
-curiosity = st.slider("好奇心", 0,100,80)
-amae = st.slider("甘え度", 0,100,60)
-rational = st.slider("理性", 0,100,75)
-care = st.slider("包容力", 0,100,85)
-active = st.slider("積極性", 0,100,70)
+【雰囲気設定】
+{tone_text}
+{sexy_text}
 
-col1, col2 = st.columns(2)
+【指示】
+・{length_instruction}
+・自然な敬語
+・年齢を最初に明示
+・趣味や休日を具体的に書く
+・軽いエピソードを1つ入れる
+・途中で絶対に終わらせない
+・説明文は禁止
+・完成した自己紹介文のみ出力
 
-# ==============================
-# 生成
-# ==============================
-with col1:
-    if st.button("✨ キャラ生成"):
-
-        if not uploaded_file:
-            st.warning("画像をアップロードしてください")
-        else:
-            image = Image.open(uploaded_file)
-            analysis = analyze_image(image)
-            birthday = generate_birthday(age)
-
-            base_info = f"""
-年齢:{age}
-生年月日:{birthday}
-雰囲気:{analysis['雰囲気']}
-職業:{analysis['推定職業']}
-趣味:{analysis['推定趣味']}
-車:{analysis['乗っていそうな車']}
-休日:{analysis['休日の過ごし方']}
-婚歴:{analysis['婚歴']}
-顔文字:{analysis['使いそうな顔文字']}
-好奇心:{curiosity}
-甘え度:{amae}
-理性:{rational}
-包容力:{care}
-積極性:{active}
+自己紹介を書いてください。
 """
 
-            intro = generate_clean_text("女性の自己紹介文を作成\n" + base_info)
-            attack = generate_clean_text("初対面アタック文を作成\n" + base_info)
-            personality = generate_clean_text("AIチャット人格プロンプトを作成\n" + base_info)
+    max_tokens = 1500 if long_mode else 800
+    return generate_text(prompt, max_tokens)
 
-            charamemo = f"""キャラメモ：
-改行：1行　口調：敬語　本名：AI生成
-年齢：{age}歳（{birthday}生まれ）
-職業：{analysis['推定職業']}
-休日：{analysis['休日の過ごし方']}
-婚歴：{analysis['婚歴']}
-顔文字：{analysis['使いそうな顔文字']}
-趣味：{analysis['推定趣味']}
-車：{analysis['乗っていそうな車']}
+# ==========================
+# アタック文生成
+# ==========================
+def generate_attack(profile, tone_level=3, sexy_level=1, long_mode=False):
+
+    tone_text = tone_level_to_text(tone_level)
+    sexy_text = sexiness_to_text(sexy_level)
+
+    length_instruction = "400〜600文字。" if long_mode else "200〜350文字。"
+
+    prompt = f"""
+あなたは以下の女性です。
+
+{profile}
+
+【雰囲気設定】
+{tone_text}
+{sexy_text}
+
+【指示】
+・{length_instruction}
+・相手を具体的に1つ褒める
+・趣味を自然に絡める
+・軽すぎない
+・大人の余裕
+・途中終了禁止
+・文章のみ出力
+
+魅力的な初回メッセージを書いてください。
 """
 
-            st.session_state.character = {
-                "プロフィール": analysis,
-                "自己紹介": intro,
-                "アタック文": attack,
-                "AI人格プロンプト": personality,
-                "キャラメモ": charamemo
-            }
+    max_tokens = 1200 if long_mode else 600
+    return generate_text(prompt, max_tokens)
 
-# ==============================
-# リセット
-# ==============================
-with col2:
-    if st.button("🔄 リセット"):
-        st.session_state.character = None
-        st.rerun()
+# ==========================
+# AI人格プロンプト生成
+# ==========================
+def generate_persona_prompt(profile, tone_level=3, sexy_level=0):
 
-# ==============================
-# 表示
-# ==============================
-if st.session_state.character:
+    tone_text = tone_level_to_text(tone_level)
+    sexy_text = sexiness_to_text(sexy_level)
 
-    st.markdown("## 📌 キャラメモ")
-    st.code(st.session_state.character["キャラメモ"])
+    prompt = f"""
+以下の女性になりきって会話してください。
 
-    st.markdown("## 👤 プロフィール")
-    st.json(st.session_state.character["プロフィール"])
+{profile}
 
-    st.markdown("## 📝 自己紹介")
-    st.write(st.session_state.character["自己紹介"])
+【雰囲気設定】
+{tone_text}
+{sexy_text}
 
-    st.markdown("## 💌 アタック文")
-    st.write(st.session_state.character["アタック文"])
+【人格ルール】
+・常に敬語
+・感情は自然に
+・依存的にならない
+・相手を否定しない
+・恋愛は焦らない
+・文章は読みやすく
+・絵文字は適度に使用
 
-    st.markdown("## 🤖 AI人格プロンプト")
-    st.code(st.session_state.character["AI人格プロンプト"])
+800文字以上で詳細なAI人格プロンプトを出力してください。
+"""
+
+    return generate_text(prompt, 1500)
+
+# ==========================
+# 使用例
+# ==========================
+if __name__ == "__main__":
+
+    profile = """
+年齢：48歳（1978年10月17日生まれ）
+職業：事務職または広報
+趣味：カフェ巡り、読書、映画鑑賞、旅行
+休日：友人とランチ、ショッピング、ドライブ
+性格：穏やかで親しみやすい
+顔文字：😉😊✨☕️💕
+"""
+
+    tone_level = 4      # 1〜5
+    sexy_level = 2      # 0〜3
+    long_mode = True    # True or False
+
+    print("📝 自己紹介\n")
+    print(generate_self_intro(profile, tone_level, sexy_level, long_mode))
+
+    print("\n💌 アタック文\n")
+    print(generate_attack(profile, tone_level, sexy_level, long_mode))
+
+    print("\n🤖 AI人格プロンプト\n")
+    print(generate_persona_prompt(profile, tone_level, sexy_level))
