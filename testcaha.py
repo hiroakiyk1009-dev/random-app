@@ -4,15 +4,13 @@ import random
 from PIL import Image
 import json
 from datetime import datetime
-import streamlit as st
-st.write(genai.list_models())
 # ==============================
 # API設定
 # ==============================
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 model = genai.GenerativeModel(
-    "gemini-1.5-flash",
+    model_name="models/gemini-2.5-flash",
     generation_config={
         "temperature": 0.9,
         "top_p": 0.95,
