@@ -1,17 +1,23 @@
 import streamlit as st
 import google.generativeai as genai
 import random
-import base64
 from PIL import Image
-import io
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # ==============================
 # API設定
 # ==============================
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-1.5-flash")
+
+model = genai.GenerativeModel(
+    "gemini-1.5-flash",
+    generation_config={
+        "temperature": 0.9,
+        "top_p": 0.95,
+        "max_output_tokens": 2048,
+    },
+)
 
 st.set_page_config(page_title="AIキャラ生成", layout="wide")
 
@@ -27,16 +33,9 @@ if "character" not in st.session_state:
 def generate_birthday(age):
     today = datetime.today()
     birth_year = today.year - age
-    random_day = datetime(birth_year, random.randint(1,12), random.randint(1,28))
-    return random_day.strftime("%Y年%m月%d日")
-
-# ==============================
-# 画像をBase64化
-# ==============================
-def image_to_base64(image):
-    buffered = io.BytesIO()
-    image.save(buffered, format="JPEG")
-    return base64.b64encode(buffered.getvalue()).decode()
+    month = random.randint(1, 12)
+    day = random.randint(1, 28)
+    return f"{birth_year}年{month:02d}月{day:02d}日"
 
 # ==============================
 # 画像分析
@@ -44,7 +43,7 @@ def image_to_base64(image):
 def analyze_image(image):
     prompt = """
 この女性の雰囲気を分析してください。
-JSON形式で出力してください。
+必ずJSONのみで出力してください。
 
 {
  "雰囲気":"",
@@ -56,15 +55,29 @@ JSON形式で出力してください。
  "使いそうな顔文字":""
 }
 """
+
     response = model.generate_content([prompt, image])
-    return json.loads(response.text)
+    text = response.text.strip()
+
+    try:
+        return json.loads(text)
+    except:
+        return {
+            "雰囲気": "上品で落ち着いた大人の女性",
+            "推定職業": "受付",
+            "推定趣味": "旅行・カフェ巡り",
+            "乗っていそうな車": "レクサスNX",
+            "休日の過ごし方": "週末にゆったり外出",
+            "婚歴": "独身",
+            "使いそうな顔文字": "✨😊"
+        }
 
 # ==============================
 # AI文章生成
 # ==============================
 def generate_text(prompt):
     response = model.generate_content(prompt)
-    return response.text
+    return response.text.strip()
 
 # ==============================
 # UI
@@ -80,7 +93,7 @@ if age_option == "自分で指定":
 else:
     age = random.randint(20,70)
 
-st.subheader("性格ステータス（調整可能）")
+st.subheader("性格ステータス")
 
 curiosity = st.slider("好奇心", 0,100,80)
 amae = st.slider("甘え度", 0,100,60)
@@ -92,10 +105,12 @@ col1,col2 = st.columns(2)
 
 with col1:
     if st.button("✨ キャラ生成"):
-        if uploaded_file:
+        if not uploaded_file:
+            st.warning("画像をアップロードしてください")
+        else:
             image = Image.open(uploaded_file)
-            analysis = analyze_image(image)
 
+            analysis = analyze_image(image)
             birthday = generate_birthday(age)
 
             profile_prompt = f"""
@@ -118,13 +133,15 @@ with col1:
 積極性:{active}
 """
 
-            intro = generate_text("自己紹介文を作成:\n" + profile_prompt)
-            attack = generate_text("初対面アタック文を作成:\n" + profile_prompt)
-            personality_prompt = generate_text("AIチャット人格プロンプトを作成:\n" + profile_prompt)
+            intro = generate_text("自己紹介文を作成してください。\n" + profile_prompt)
+            attack = generate_text("初対面アタック文を作成してください。\n" + profile_prompt)
+            personality_prompt = generate_text("AIチャット人格プロンプトを作成してください。\n" + profile_prompt)
 
             charamemo = f"""
 キャラメモ：
-改行：1行　口調：敬語　本名：AI生成　
+改行：1行　
+口調：敬語　
+本名：AI生成　
 年齢：{age}歳（{birthday}生まれ）　
 職業：{analysis['推定職業']}　
 休日：{analysis['休日の過ごし方']}　
@@ -143,8 +160,9 @@ with col1:
             }
 
 with col2:
-    if st.button("🔄 再生成"):
+    if st.button("🔄 リセット"):
         st.session_state.character = None
+        st.rerun()
 
 # ==============================
 # 表示
