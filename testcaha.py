@@ -7,7 +7,6 @@ import os
 # APIキー設定
 # ==========================
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
 model = genai.GenerativeModel("models/gemini-2.5-flash")
 
 # ==========================
@@ -43,8 +42,8 @@ def generate_all(profile, tone_level=3, sexy_level=0, long_mode=False, image_pat
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
 
-    intro_length = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
-    attack_length = "400〜600文字。" if long_mode else "200〜350文字。"
+    intro_length = "600〜800文字で詳しく。" if long_mode else "300〜450文字で簡潔に。"
+    attack_length = "350〜500文字。" if long_mode else "200〜300文字。"
 
     prompt = f"""
 あなたは以下の女性です。
@@ -52,15 +51,15 @@ def generate_all(profile, tone_level=3, sexy_level=0, long_mode=False, image_pat
 【プロフィール】
 {profile}
 
-【雰囲気設定】
+【雰囲気】
 {tone_text}
 {sexy_text}
 
 以下を必ず順番通り出力してください。
 
 ①【画像の雰囲気分析】
-画像がある場合は、服装・表情・背景・全体印象を分析。
-ない場合は「画像なし」と明記。
+画像がある場合は服装・表情・背景・全体印象を簡潔に分析。
+画像がない場合は「画像なし」と明記。
 
 ②【自己紹介文】
 ・{intro_length}
@@ -84,32 +83,31 @@ def generate_all(profile, tone_level=3, sexy_level=0, long_mode=False, image_pat
 ・常に敬語
 ・感情は自然に
 ・依存しない
-・相手を否定しない
+・否定しない
 ・恋愛は焦らない
 ・読みやすく
 ・絵文字は適度
-・800文字以上
+・600文字以上
 """
 
-    # 🔥 generation_config はここで作る
+    # 🔒 無料枠対策
     config = GenerationConfig(
         temperature=0.65,
         top_p=0.85,
-        max_output_tokens=800
+        max_output_tokens=650   # ← ここ重要（安全値）
     )
 
-    # 🔥 API呼び出しは1回のみ
+    contents = [prompt]
+
     if image_path and os.path.exists(image_path):
         image = Image.open(image_path)
-        response = model.generate_content(
-            [prompt, image],
-            generation_config=config
-        )
-    else:
-        response = model.generate_content(
-            prompt,
-            generation_config=config
-        )
+        image.thumbnail((512, 512))  # トークン削減
+        contents = [prompt, image]
+
+    response = model.generate_content(
+        contents,
+        generation_config=config
+    )
 
     return response.text.strip()
 
@@ -131,8 +129,6 @@ if __name__ == "__main__":
     tone_level = 4
     sexy_level = 2
     long_mode = True
-
-    # 画像があるならパス指定
     image_path = None  # 例: "sample.jpg"
 
     result = generate_all(
