@@ -41,7 +41,7 @@ def generate_text(prompt, max_tokens=1000):
     config = GenerationConfig(
         temperature=0.8,
         top_p=0.9,
-        max_output_tokens=int(max_tokens)
+        max_output_tokens=400
     )
 
     response = model.generate_content(
