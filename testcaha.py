@@ -1,23 +1,17 @@
 import google.generativeai as genai
-from google.generativeai.types import GenerationConfig
-import os
 
 # ==========================
-# APIキー設定
+# APIキー設定（必要な時だけ呼ぶ想定）
 # ==========================
-api_key = os.getenv("GEMINI_API_KEY")
+API_KEY = "YOUR_API_KEY"
 
-if not api_key:
-    raise ValueError("GEMINI_API_KEY が設定されていません")
-
-genai.configure(api_key=api_key)
-
-model = genai.GenerativeModel("gemini-2.5-flash")
+def configure_api():
+    genai.configure(api_key=API_KEY)
 
 # ==========================
 # 雰囲気レベル変換
 # ==========================
-def tone_level_to_text(level: int):
+def tone_level_to_text(level: int) -> str:
     tone_map = {
         1: "非常に落ち着き重視。感情表現は最小限。",
         2: "やや控えめ。上品で穏やか。",
@@ -30,7 +24,7 @@ def tone_level_to_text(level: int):
 # ==========================
 # 色気レベル変換
 # ==========================
-def sexiness_to_text(level: int):
+def sexiness_to_text(level: int) -> str:
     sex_map = {
         0: "色気は出さない。",
         1: "ほんのり大人の余裕を感じさせる。",
@@ -40,32 +34,33 @@ def sexiness_to_text(level: int):
     return sex_map.get(level, sex_map[0])
 
 # ==========================
-# 共通生成関数（修正）
+# 共通生成関数（API呼び出し）
 # ==========================
-def generate_text(prompt, max_tokens=400):
-
-    config = GenerationConfig(
-        temperature=0.8,
-        top_p=0.9,
-        max_output_tokens=max_tokens  # ← 修正（固定値400を廃止）
-    )
-
+def generate_text(prompt: str, max_tokens: int = 1000) -> str:
+    # 必要時にAPI設定
+    configure_api()
+    model = genai.GenerativeModel("models/gemini-2.5-flash")
+    
     response = model.generate_content(
         prompt,
-        generation_config=config
+        generation_config={
+            "temperature": 0.8,
+            "top_p": 0.9,
+            "max_output_tokens": max_tokens
+        }
     )
-
     return response.text.strip()
 
 # ==========================
 # 自己紹介生成
 # ==========================
-def generate_self_intro(profile, tone_level=3, sexy_level=0, long_mode=False):
+def generate_self_intro(profile: str, tone_level: int = 3,
+                        sexy_level: int = 0, long_mode: bool = False) -> str:
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
-
+    
     length_instruction = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
-
+    
     prompt = f"""
 あなたは以下の女性です。
 {profile}
@@ -86,19 +81,19 @@ def generate_self_intro(profile, tone_level=3, sexy_level=0, long_mode=False):
 
 自己紹介を書いてください。
 """
-
-    max_tokens = 900 if long_mode else 600
+    max_tokens = 1500 if long_mode else 800
     return generate_text(prompt, max_tokens)
 
 # ==========================
 # アタック文生成
 # ==========================
-def generate_attack(profile, tone_level=3, sexy_level=1, long_mode=False):
+def generate_attack(profile: str, tone_level: int = 3,
+                    sexy_level: int = 1, long_mode: bool = False) -> str:
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
-
+    
     length_instruction = "400〜600文字。" if long_mode else "200〜350文字。"
-
+    
     prompt = f"""
 あなたは以下の女性です。
 {profile}
@@ -118,17 +113,17 @@ def generate_attack(profile, tone_level=3, sexy_level=1, long_mode=False):
 
 魅力的な初回メッセージを書いてください。
 """
-
-    max_tokens = 800 if long_mode else 500
+    max_tokens = 1200 if long_mode else 600
     return generate_text(prompt, max_tokens)
 
 # ==========================
 # AI人格プロンプト生成
 # ==========================
-def generate_persona_prompt(profile, tone_level=3, sexy_level=0):
+def generate_persona_prompt(profile: str, tone_level: int = 3,
+                            sexy_level: int = 0) -> str:
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
-
+    
     prompt = f"""
 以下の女性になりきって会話してください。
 {profile}
@@ -148,11 +143,16 @@ def generate_persona_prompt(profile, tone_level=3, sexy_level=0):
 
 800文字以上で詳細なAI人格プロンプトを出力してください。
 """
-
-    return generate_text(prompt, 1000)
+    return generate_text(prompt, 1500)
 
 # ==========================
-# 使用例（起動時にAPIを呼ばないよう修正）
+# 使用例（必要な時だけ呼ぶ）
 # ==========================
 if __name__ == "__main__":
-    print("このファイルはライブラリとして使用してください。")
+    profile_example = "年齢25歳、趣味はカフェ巡りと映画鑑賞。"
+    
+    # 画像送信時だけ呼びたい場合
+    is_image_sent = True  # 画像送信判定のフラグ
+    if is_image_sent:
+        intro_text = generate_self_intro(profile_example, tone_level=4, sexy_level=1)
+        print(intro_text)
