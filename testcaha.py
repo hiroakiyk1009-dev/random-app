@@ -2,17 +2,18 @@ import streamlit as st
 import google.generativeai as genai
 from datetime import datetime
 import random
-import tempfile
+from PIL import Image
+import io
 
 # ==========================
 # APIキー設定
 # ==========================
 def configure_api():
-    genai.configure(api_key="GEMINI_API_KEY")
-    return genai.GenerativeModel("models/gemini-1.5-pro-vision-latest")
+    genai.configure(api_key="YOUR_API_KEY")
+    return genai.GenerativeModel("gemini-1.5-pro-vision-latest")
 
 # ==========================
-# キャラメモ生成（名前含めAIに任せる）
+# キャラメモ生成
 # ==========================
 def generate_character_memo(model, image_bytes, mime_type, age):
     birth_year = datetime.now().year - age
@@ -52,15 +53,10 @@ def generate_character_memo(model, image_bytes, mime_type, age):
 【画像の内容をもとに、上記の形式でキャラメモを出力してください】
 """
 
-    # 一時ファイルに画像を書き出してアップロード
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
-        tmp_file.write(image_bytes)
-        tmp_file_path = tmp_file.name
-
-    uploaded_image = genai.upload_file(path=tmp_file_path, mime_type=mime_type)
+    image = Image.open(io.BytesIO(image_bytes))
 
     response = model.generate_content(
-        [prompt, uploaded_image],
+        [prompt, image],
         generation_config={
             "temperature": 0.7,
             "top_p": 0.9,
@@ -83,7 +79,7 @@ def main():
             with st.spinner("画像を解析中... 🍄"):
                 model = configure_api()
                 image_bytes = uploaded_file.read()
-                mime_type = uploaded_file.type  # 例: "image/jpeg"
+                mime_type = uploaded_file.type
                 result = generate_character_memo(model, image_bytes, mime_type, age)
                 st.success("✅ キャラメモ生成完了！")
                 st.text_area("📝 キャラメモ", result, height=400)
