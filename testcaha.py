@@ -1,5 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
+from datetime import datetime
+import random
 
 # ==========================
 # APIキー設定
@@ -9,173 +11,49 @@ def configure_api():
     return genai.GenerativeModel("models/gemini-2.5-flash")
 
 # ==========================
-# 雰囲気レベル変換
+# キャラメモ生成（名前含めAIに任せる）
 # ==========================
-def tone_level_to_text(level: int):
-    tone_map = {
-        1: "非常に落ち着き重視。感情表現は最小限。",
-        2: "やや控えめ。上品で穏やか。",
-        3: "自然で親しみやすい標準的な表現。",
-        4: "感情豊かで柔らかい表現。",
-        5: "かなり感情豊かで印象的。"
-    }
-    return tone_map.get(level, tone_map[3])
+def generate_character_memo(model, image_data, age):
+    birth_year = datetime.now().year - age
+    birth_date = f"{birth_year}年{random.randint(1,12):02d}月{random.randint(1,28):02d}日"
+    blood_types = ["A型", "B型", "O型", "AB型"]
+    blood_type = random.choice(blood_types)
 
-# ==========================
-# 色気レベル変換
-# ==========================
-def sexiness_to_text(level: int):
-    sex_map = {
-        0: "色気は出さない。",
-        1: "ほんのり大人の余裕を感じさせる。",
-        2: "自然な色気を上品に含める。",
-        3: "大人の魅力をはっきりと表現する。"
-    }
-    return sex_map.get(level, sex_map[0])
+    prompt = f"""
+以下の女性の画像をもとに、キャラメモを作成してください。
 
-# ==========================
-# 共通生成関数
-# ==========================
-def generate_text(model, prompt, max_tokens=1000):
+【条件】
+・口調：敬語
+・出力形式：以下の例に厳密に従うこと
+・本名：画像から自然に推定して日本人女性の名前を生成してください（ふりがな付き）
+・年齢：{age}歳（{birth_date}生まれ、{blood_type}）
+・職業：画像から推定
+・顔文字：画像から推定
+・趣味：画像から推定（2つ以上）
+・車：画像から推定
+・写メ：出力しない
+
+【出力例】
+キャラメモ：
+
+改行：1行　
+口調：敬語　
+本名：宮崎 歩実（みやざき　あゆみ）　
+年齢：38歳（1972年05月09日生まれ、O型）　
+職業：受付　
+休日：週末　
+婚歴：独身　
+顔文字：✨👌😘　
+趣味：サイクリング、ジョギング　
+車：レクサス nx　
+写メ⇒
+
+【画像の内容をもとに、上記の形式でキャラメモを出力してください】
+"""
+
     response = model.generate_content(
-        prompt,
+        [prompt, image_data],
         generation_config={
-            "temperature": 0.8,
+            "temperature": 0.7,
             "top_p": 0.9,
-            "max_output_tokens": max_tokens
-        }
-    )
-    return response.text.strip()
-
-# ==========================
-# 自己紹介生成
-# ==========================
-def generate_self_intro(model, profile, tone_level=3, sexy_level=0, long_mode=False):
-    tone_text = tone_level_to_text(tone_level)
-    sexy_text = sexiness_to_text(sexy_level)
-    length_instruction = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
-
-    prompt = f"""
-あなたは以下の女性です。
-{profile}
-
-【雰囲気設定】
-{tone_text}
-{sexy_text}
-
-【指示】
-・{length_instruction}
-・自然な敬語
-・年齢を最初に明示
-・趣味や休日を具体的に書く
-・軽いエピソードを1つ入れる
-・途中で絶対に終わらせない
-・説明文は禁止
-・完成した自己紹介文のみ出力
-
-自己紹介を書いてください。
-"""
-    max_tokens = 1500 if long_mode else 800
-    return generate_text(model, prompt, max_tokens)
-
-# ==========================
-# アタック文生成
-# ==========================
-def generate_attack(model, profile, tone_level=3, sexy_level=1, long_mode=False):
-    tone_text = tone_level_to_text(tone_level)
-    sexy_text = sexiness_to_text(sexy_level)
-    length_instruction = "400〜600文字。" if long_mode else "200〜350文字。"
-
-    prompt = f"""
-あなたは以下の女性です。
-{profile}
-
-【雰囲気設定】
-{tone_text}
-{sexy_text}
-
-【指示】
-・{length_instruction}
-・相手を具体的に1つ褒める
-・趣味を自然に絡める
-・軽すぎない
-・大人の余裕
-・途中終了禁止
-・文章のみ出力
-
-魅力的な初回メッセージを書いてください。
-"""
-    max_tokens = 1200 if long_mode else 600
-    return generate_text(model, prompt, max_tokens)
-
-# ==========================
-# AI人格プロンプト生成
-# ==========================
-def generate_persona_prompt(model, profile, tone_level=3, sexy_level=0):
-    tone_text = tone_level_to_text(tone_level)
-    sexy_text = sexiness_to_text(sexy_level)
-
-    prompt = f"""
-以下の女性になりきって会話してください。
-{profile}
-
-【雰囲気設定】
-{tone_text}
-{sexy_text}
-
-【人格ルール】
-・常に敬語
-・感情は自然に
-・依存的にならない
-・相手を否定しない
-・恋愛は焦らない
-・文章は読みやすく
-・絵文字は適度に使用
-
-800文字以上で詳細なAI人格プロンプトを出力してください。
-"""
-    return generate_text(model, prompt, 1500)
-
-# ==========================
-# Streamlit UI
-# ==========================
-def main():
-    st.title("✨ AI自己紹介＆メッセージ生成ツール")
-
-    # 入力欄
-    profile = st.text_area("🌿 プロフィールを入力してください", height=150)
-    tone_level = st.slider("🎭 雰囲気レベル（1: 落ち着き〜5: 感情豊か）", 1, 5, 3)
-    sexy_level = st.slider("💫 色気レベル（0: 出さない〜3: 魅力的）", 0, 3, 0)
-    long_mode = st.checkbox("📝 長めの文章にする")
-
-    # モード選択
-    mode = st.selectbox("✍️ 生成する内容を選んでください", ["自己紹介", "アタック文", "AI人格プロンプト"])
-
-    # 画像アップロード（トリガー用）
-    uploaded_file = st.file_uploader("📷 画像をアップロードしてください（API呼び出しのトリガーになります）", type=["jpg", "jpeg", "png"])
-
-    if st.button("🌈 生成する"):
-        if not profile.strip():
-            st.warning("プロフィールを入力してください。")
-            return
-
-        if uploaded_file:
-            with st.spinner("生成中...しばらくお待ちください 🍄"):
-                model = configure_api()
-
-                if mode == "自己紹介":
-                    result = generate_self_intro(model, profile, tone_level, sexy_level, long_mode)
-                elif mode == "アタック文":
-                    result = generate_attack(model, profile, tone_level, sexy_level, long_mode)
-                elif mode == "AI人格プロンプト":
-                    result = generate_persona_prompt(model, profile, tone_level, sexy_level)
-                else:
-                    result = "モードが不明です。"
-
-                st.success("✨ 生成完了！")
-                st.text_area("📝 結果", result, height=400)
-        else:
-            st.info("画像がアップロードされていないため、APIは呼び出されません。")
-
-if __name__ == "__main__":
-    main()
+            "max_output_tokens
