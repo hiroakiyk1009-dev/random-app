@@ -8,7 +8,7 @@ import time
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # 🔥 軽量安定モデルに変更（無料枠向き）
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("models/gemini-2.5-flash")
 
 
 # ==========================
