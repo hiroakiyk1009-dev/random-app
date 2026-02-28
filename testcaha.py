@@ -1,4 +1,5 @@
 import google.generativeai as genai
+from google.generativeai.types import GenerationConfig
 
 # ==========================
 # APIキー設定
@@ -33,17 +34,21 @@ def sexiness_to_text(level: int):
     return sex_map.get(level, sex_map[0])
 
 # ==========================
-# 共通生成関数（元仕様そのまま）
+# 共通生成関数（InvalidArgument対策のみ修正）
 # ==========================
 def generate_text(prompt, max_tokens=1000):
+
+    config = GenerationConfig(
+        temperature=0.8,
+        top_p=0.9,
+        max_output_tokens=int(max_tokens)
+    )
+
     response = model.generate_content(
         prompt,
-        generation_config={
-            "temperature": 0.8,
-            "top_p": 0.9,
-            "max_output_tokens": max_tokens
-        }
+        generation_config=config
     )
+
     return response.text.strip()
 
 # ==========================
