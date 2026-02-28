@@ -1,12 +1,15 @@
 import google.generativeai as genai
 import os
+import time
 
 # ==========================
 # APIキー設定
 # ==========================
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-model = genai.GenerativeModel("models/gemini-2.5-flash")
+# 🔥 軽量安定モデルに変更（無料枠向き）
+model = genai.GenerativeModel("gemini-1.5-flash")
+
 
 # ==========================
 # 雰囲気レベル変換
@@ -21,6 +24,7 @@ def tone_level_to_text(level: int):
     }
     return tone_map.get(level, tone_map[3])
 
+
 # ==========================
 # 色気レベル変換
 # ==========================
@@ -33,18 +37,18 @@ def sexiness_to_text(level: int):
     }
     return sex_map.get(level, sex_map[0])
 
+
 # ==========================
-# 共通生成関数（グラインダー調整可）
+# 共通生成関数（無料枠最適化版）
 # ==========================
 def generate_text(
     prompt,
-    max_tokens=1000,
-    min_length=300,
+    max_tokens=700,     # 🔥 大幅削減
+    min_length=250,
     temperature=0.6,
     top_p=0.85
 ):
-
-    for _ in range(3):  # 最大3回再生成
+    try:
         response = model.generate_content(
             prompt,
             generation_config={
@@ -56,10 +60,16 @@ def generate_text(
 
         text = response.text.strip()
 
-        if len(text) >= min_length:
-            return text
+        # 🔥 文字数不足でも再生成しない（無料枠優先）
+        if len(text) < min_length:
+            text += "\n\n（※補足：文字数制限のため簡潔にまとめています。）"
 
-    return text
+        time.sleep(1.2)  # 🔥 レート制限対策
+
+        return text
+
+    except Exception as e:
+        return f"⚠️ APIエラー: {e}"
 
 
 # ==========================
@@ -77,34 +87,29 @@ def generate_self_intro(
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
 
-    length_instruction = "600〜900文字" if long_mode else "300〜500文字"
-    min_length = 600 if long_mode else 300
-    max_tokens = 1500 if long_mode else 800
+    length_instruction = "500〜700文字" if long_mode else "300〜450文字"
+    min_length = 450 if long_mode else 250
+    max_tokens = 700 if long_mode else 500  # 🔥 削減
 
     prompt = f"""
-### 役割
 あなたは以下の女性です。
 
-### プロフィール
+【プロフィール】
 {profile}
 
-### 雰囲気
+【雰囲気】
 {tone_text}
 {sexy_text}
 
-### 出力条件
-・{length_instruction}で作成
+【出力条件】
+・{length_instruction}
 ・自然な敬語
 ・年齢を最初に明示
-・趣味や休日を具体的に書く
-・軽いエピソードを1つ入れる
-・必ず自然な締めの一文で終える
+・趣味や休日を具体的に
+・軽いエピソードを1つ
+・自然な締めで終える
 
-### 重要
-指定文字数未満の場合は必ず書き足して完成させること。
-
-### 出力形式
-自己紹介文のみ出力する。
+自己紹介文のみ出力。
 """
 
     return generate_text(prompt, max_tokens, min_length, temperature, top_p)
@@ -125,34 +130,29 @@ def generate_attack(
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
 
-    length_instruction = "400〜600文字" if long_mode else "200〜350文字"
-    min_length = 400 if long_mode else 200
-    max_tokens = 1200 if long_mode else 600
+    length_instruction = "350〜500文字" if long_mode else "200〜300文字"
+    min_length = 300 if long_mode else 200
+    max_tokens = 600 if long_mode else 400  # 🔥 削減
 
     prompt = f"""
-### 役割
 あなたは以下の女性です。
 
-### プロフィール
+【プロフィール】
 {profile}
 
-### 雰囲気
+【雰囲気】
 {tone_text}
 {sexy_text}
 
-### 出力条件
-・{length_instruction}で作成
-・相手を具体的に1つ褒める
+【出力条件】
+・{length_instruction}
+・相手を1つ具体的に褒める
 ・趣味を自然に絡める
 ・軽すぎない
 ・大人の余裕
-・必ず自然な締めの一文で終える
+・自然な締め
 
-### 重要
-指定文字数未満の場合は必ず書き足して完成させること。
-
-### 出力形式
-文章のみ出力する。
+文章のみ出力。
 """
 
     return generate_text(prompt, max_tokens, min_length, temperature, top_p)
@@ -173,34 +173,29 @@ def generate_persona_prompt(
     sexy_text = sexiness_to_text(sexy_level)
 
     prompt = f"""
-### 役割
-以下の女性になりきって会話するAI人格を作成する。
+以下の女性になりきるAI人格を作成する。
 
-### プロフィール
+【プロフィール】
 {profile}
 
-### 雰囲気
+【雰囲気】
 {tone_text}
 {sexy_text}
 
-### 人格ルール
+【人格ルール】
 ・常に敬語
 ・感情は自然に
 ・依存的にならない
-・相手を否定しない
+・否定しない
 ・恋愛は焦らない
-・文章は読みやすい
-・絵文字は適度に使用
+・読みやすい文章
+・絵文字は適度
 
-### 出力条件
-800文字以上で詳細に作成。
-必ず自然な締めで終える。
-
-### 出力形式
-人格プロンプトのみ出力する。
+700文字以上で作成。
+人格プロンプトのみ出力。
 """
 
-    return generate_text(prompt, 1500, 800, temperature, top_p)
+    return generate_text(prompt, 800, 600, temperature, top_p)  # 🔥 削減
 
 
 # ==========================
@@ -217,7 +212,6 @@ if __name__ == "__main__":
 顔文字：😉😊✨☕️💕
 """
 
-    # 🎛 グラインダー値（ここを自由に調整可能）
     temperature = 0.65
     top_p = 0.88
 
@@ -226,30 +220,10 @@ if __name__ == "__main__":
     long_mode = True
 
     print("📝 自己紹介\n")
-    print(generate_self_intro(
-        profile,
-        tone_level,
-        sexy_level,
-        long_mode,
-        temperature,
-        top_p
-    ))
+    print(generate_self_intro(profile, tone_level, sexy_level, long_mode, temperature, top_p))
 
     print("\n💌 アタック文\n")
-    print(generate_attack(
-        profile,
-        tone_level,
-        sexy_level,
-        long_mode,
-        temperature,
-        top_p
-    ))
+    print(generate_attack(profile, tone_level, sexy_level, long_mode, temperature, top_p))
 
     print("\n🤖 AI人格プロンプト\n")
-    print(generate_persona_prompt(
-        profile,
-        tone_level,
-        sexy_level,
-        temperature,
-        top_p
-    ))
+    print(generate_persona_prompt(profile, tone_level, sexy_level, temperature, top_p))
