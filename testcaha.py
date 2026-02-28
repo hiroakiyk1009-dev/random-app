@@ -2,14 +2,14 @@ import streamlit as st
 import google.generativeai as genai
 from datetime import datetime
 import random
-from google.generativeai.types import content_types
+import tempfile
 
 # ==========================
 # APIキー設定
 # ==========================
 def configure_api():
     genai.configure(api_key="YOUR_API_KEY")
-    return genai.GenerativeModel("models/gemini-2.5-flash")
+    return genai.GenerativeModel("models/gemini-1.5-pro-vision-latest")
 
 # ==========================
 # キャラメモ生成（名前含めAIに任せる）
@@ -52,13 +52,15 @@ def generate_character_memo(model, image_bytes, mime_type, age):
 【画像の内容をもとに、上記の形式でキャラメモを出力してください】
 """
 
-    image_part = content_types.ImagePart(
-        mime_type=mime_type,
-        data=image_bytes
-    )
+    # 一時ファイルに画像を書き出してアップロード
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
+        tmp_file.write(image_bytes)
+        tmp_file_path = tmp_file.name
+
+    uploaded_image = genai.upload_file(path=tmp_file_path, mime_type=mime_type)
 
     response = model.generate_content(
-        [prompt, image_part],
+        [prompt, uploaded_image],
         generation_config={
             "temperature": 0.7,
             "top_p": 0.9,
