@@ -49,13 +49,10 @@ def sexiness_to_text(level: int):
 # ==========================
 # 全生成（API1回のみ）
 # ==========================
-def generate_all(tone_level=3, sexy_level=0, long_mode=False, image_path=None):
+def generate_all(tone_level=3, sexy_level=0, image_path=None):
 
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
-
-    intro_length = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
-    attack_length = "400〜600文字。" if long_mode else "200〜350文字。"
 
     prompt = f"""
 あなたは以下の女性です。
@@ -74,21 +71,19 @@ def generate_all(tone_level=3, sexy_level=0, long_mode=False, image_path=None):
 ない場合は「画像なし」と明記。
 
 ②【自己紹介文】
-・{intro_length}
+・300〜500文字
 ・自然な敬語
 ・年齢を最初に明示
 ・趣味や休日を具体的に
 ・軽いエピソードを1つ入れる
-・途中終了禁止
 ・完成文のみ出力
 
 ③【アタック文章】
-・{attack_length}
+・200〜350文字
 ・相手を具体的に1つ褒める
 ・趣味を自然に絡める
 ・軽すぎない
 ・大人の余裕
-・途中終了禁止
 ・完成文のみ出力
 
 ④【AI人格プロンプト】
@@ -99,22 +94,20 @@ def generate_all(tone_level=3, sexy_level=0, long_mode=False, image_path=None):
 ・恋愛は焦らない
 ・読みやすく
 ・絵文字は適度
-・800文字以上
+・600文字以上
 """
 
-    # 🔥 generation_config（安全軽量）
     config = GenerationConfig(
         temperature=0.65,
         top_p=0.85,
-        max_output_tokens=650   # ← 800は重いので安全域へ調整
+        max_output_tokens=650
     )
 
-    # 🔥 API呼び出しは1回のみ
     contents = [prompt]
 
     if image_path and os.path.exists(image_path):
         image = Image.open(image_path)
-        image.thumbnail((512, 512))  # トークン削減
+        image.thumbnail((512, 512))
         contents = [prompt, image]
 
     response = model.generate_content(
@@ -124,21 +117,10 @@ def generate_all(tone_level=3, sexy_level=0, long_mode=False, image_path=None):
 
     return response.text.strip()
 
+
 # ==========================
-# 使用例
+# 🔒 起動時API実行防止
 # ==========================
 if __name__ == "__main__":
-
-    tone_level = 4
-    sexy_level = 2
-    long_mode = True
-    image_path = None  # 例: "sample.jpg"
-
-    result = generate_all(
-        tone_level,
-        sexy_level,
-        long_mode,
-        image_path
-    )
-
-    print(result)
+    print("このファイルは直接実行用ではありません。")
+    print("generate_all() を呼び出した時のみAPIが実行されます。")
