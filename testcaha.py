@@ -16,7 +16,7 @@ model = genai.GenerativeModel(
     generation_config={
         "temperature": 0.85,
         "top_p": 0.9,
-        "max_output_tokens": 500,
+        "max_output_tokens": 800,
         "response_mime_type": "application/json"  # JSON固定
     },
 )
@@ -26,7 +26,7 @@ text_model = genai.GenerativeModel(
     generation_config={
         "temperature": 0.9,
         "top_p": 0.95,
-        "max_output_tokens": 500,
+        "max_output_tokens": 800,
     },
 )
 
