@@ -1,7 +1,6 @@
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 from PIL import Image
-import streamlit as st
 import os
 
 # ==========================
@@ -9,6 +8,18 @@ import os
 # ==========================
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel("models/gemini-2.5-flash")
+
+# ==========================
+# 固定プロフィール（←ここだけ編集すればOK）
+# ==========================
+PROFILE = """
+年齢：48歳（1978年10月17日生まれ）
+職業：事務職または広報
+趣味：カフェ巡り、読書、映画鑑賞、旅行
+休日：友人とランチ、ショッピング、ドライブ
+性格：穏やかで親しみやすい
+顔文字：😉😊✨☕️💕
+"""
 
 # ==========================
 # 雰囲気レベル変換
@@ -23,6 +34,9 @@ def tone_level_to_text(level: int):
     }
     return tone_map.get(level, tone_map[3])
 
+# ==========================
+# 色気レベル変換
+# ==========================
 def sexiness_to_text(level: int):
     sex_map = {
         0: "色気は出さない。",
@@ -33,50 +47,74 @@ def sexiness_to_text(level: int):
     return sex_map.get(level, sex_map[0])
 
 # ==========================
-# API1回のみ生成
+# 全生成（API1回のみ）
 # ==========================
-def generate_all(profile, tone_level, sexy_level, long_mode, uploaded_image):
+def generate_all(tone_level=3, sexy_level=0, long_mode=False, image_path=None):
 
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
 
-    intro_length = "600〜800文字" if long_mode else "300〜450文字"
-    attack_length = "350〜500文字" if long_mode else "200〜300文字"
+    intro_length = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
+    attack_length = "400〜600文字。" if long_mode else "200〜350文字。"
 
     prompt = f"""
 あなたは以下の女性です。
 
 【プロフィール】
-{profile}
+{PROFILE}
 
-【雰囲気】
+【雰囲気設定】
 {tone_text}
 {sexy_text}
 
-①【画像分析】
-画像があれば簡潔に分析。なければ「画像なし」と出力。
+以下を必ず順番通り出力してください。
 
-②【自己紹介】
-{intro_length}で作成。自然な敬語。年齢を最初に明示。
+①【画像の雰囲気分析】
+画像がある場合は服装・表情・背景・全体印象を簡潔に分析。
+ない場合は「画像なし」と明記。
+
+②【自己紹介文】
+・{intro_length}
+・自然な敬語
+・年齢を最初に明示
+・趣味や休日を具体的に
+・軽いエピソードを1つ入れる
+・途中終了禁止
+・完成文のみ出力
 
 ③【アタック文章】
-{attack_length}で作成。相手を1つ具体的に褒める。
+・{attack_length}
+・相手を具体的に1つ褒める
+・趣味を自然に絡める
+・軽すぎない
+・大人の余裕
+・途中終了禁止
+・完成文のみ出力
 
 ④【AI人格プロンプト】
-600文字以上。常に敬語。
+・常に敬語
+・感情は自然に
+・依存しない
+・相手を否定しない
+・恋愛は焦らない
+・読みやすく
+・絵文字は適度
+・800文字以上
 """
 
+    # 🔥 generation_config（安全軽量）
     config = GenerationConfig(
         temperature=0.65,
         top_p=0.85,
-        max_output_tokens=600  # 無料枠安全域
+        max_output_tokens=650   # ← 800は重いので安全域へ調整
     )
 
+    # 🔥 API呼び出しは1回のみ
     contents = [prompt]
 
-    if uploaded_image:
-        image = Image.open(uploaded_image)
-        image.thumbnail((512, 512))
+    if image_path and os.path.exists(image_path):
+        image = Image.open(image_path)
+        image.thumbnail((512, 512))  # トークン削減
         contents = [prompt, image]
 
     response = model.generate_content(
@@ -87,33 +125,20 @@ def generate_all(profile, tone_level, sexy_level, long_mode, uploaded_image):
     return response.text.strip()
 
 # ==========================
-# Streamlit UI
+# 使用例
 # ==========================
+if __name__ == "__main__":
 
-st.title("AI生成ツール")
+    tone_level = 4
+    sexy_level = 2
+    long_mode = True
+    image_path = None  # 例: "sample.jpg"
 
-profile = st.text_area("プロフィール入力")
+    result = generate_all(
+        tone_level,
+        sexy_level,
+        long_mode,
+        image_path
+    )
 
-tone_level = st.slider("雰囲気", 1, 5, 3)
-sexy_level = st.slider("色気", 0, 3, 1)
-long_mode = st.checkbox("長文モード")
-
-uploaded_image = st.file_uploader("画像アップロード", type=["jpg", "png"])
-
-if "result" not in st.session_state:
-    st.session_state.result = None
-
-if st.button("生成する"):
-    if profile.strip() == "":
-        st.warning("プロフィールを入力してください。")
-    else:
-        st.session_state.result = generate_all(
-            profile,
-            tone_level,
-            sexy_level,
-            long_mode,
-            uploaded_image
-        )
-
-if st.session_state.result:
-    st.write(st.session_state.result)
+    print(result)
