@@ -1,12 +1,14 @@
 import google.generativeai as genai
+from google.generativeai.types import GenerationConfig
 from PIL import Image
+import os
 
 # ==========================
 # APIキー設定
 # ==========================
-genai.configure(api_key="YOUR_API_KEY")
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("models/gemini-2.5-flash")
 
 # ==========================
 # 雰囲気レベル変換
@@ -34,88 +36,83 @@ def sexiness_to_text(level: int):
     return sex_map.get(level, sex_map[0])
 
 # ==========================
-# API 1回のみ統合生成（画像含む）
+# 全生成（API1回のみ）
 # ==========================
-def generate_all(profile,
-                 tone_level=3,
-                 sexy_level=0,
-                 long_mode=False,
-                 image_path=None):
+def generate_all(profile, tone_level=3, sexy_level=0, long_mode=False, image_path=None):
 
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
 
-    self_length = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
+    intro_length = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
     attack_length = "400〜600文字。" if long_mode else "200〜350文字。"
 
     prompt = f"""
 あなたは以下の女性です。
 
+【プロフィール】
 {profile}
 
 【雰囲気設定】
 {tone_text}
 {sexy_text}
 
-====================
-【① 画像雰囲気判定】
-・落ち着き度（1〜5）
-・色気度（0〜3）
-・第一印象を一言
-※画像が無い場合は「画像なし」と出力
+以下を必ず順番通り出力してください。
 
-====================
-【② 自己紹介】
-・{self_length}
+①【画像の雰囲気分析】
+画像がある場合は、服装・表情・背景・全体印象を分析。
+ない場合は「画像なし」と明記。
+
+②【自己紹介文】
+・{intro_length}
 ・自然な敬語
 ・年齢を最初に明示
 ・趣味や休日を具体的に
-・軽いエピソードを1つ
-・自然に締める
+・軽いエピソードを1つ入れる
+・途中終了禁止
+・完成文のみ出力
 
-====================
-【③ アタック文】
+③【アタック文章】
 ・{attack_length}
 ・相手を具体的に1つ褒める
-・趣味を絡める
+・趣味を自然に絡める
+・軽すぎない
 ・大人の余裕
-・自然に締める
+・途中終了禁止
+・完成文のみ出力
 
-====================
-【④ AI人格プロンプト】
-・800文字以上
+④【AI人格プロンプト】
 ・常に敬語
+・感情は自然に
 ・依存しない
 ・相手を否定しない
 ・恋愛は焦らない
 ・読みやすく
-
-必ず4つすべて出力すること。
-各セクションにタイトルをつけること。
+・絵文字は適度
+・800文字以上
 """
 
-    # 画像がある場合はマルチモーダル入力
-    if image_path:
+    # 🔥 generation_config はここで作る
+    config = GenerationConfig(
+        temperature=0.65,
+        top_p=0.85,
+        max_output_tokens=1600
+    )
+
+    # 🔥 API呼び出しは1回のみ
+    if image_path and os.path.exists(image_path):
         image = Image.open(image_path)
         response = model.generate_content(
             [prompt, image],
-            generation_config={
-                "temperature": 0.65,
-                "top_p": 0.85,
-                "max_output_tokens": 1600
-            }
+            generation_config=config
         )
     else:
         response = model.generate_content(
             prompt,
-            generation_config={
-                "temperature": 0.65,
-                "top_p": 0.85,
-                "max_output_tokens": 1600
-            }
+            generation_config=config
         )
 
     return response.text.strip()
+
 
 # ==========================
 # 使用例
@@ -135,9 +132,8 @@ if __name__ == "__main__":
     sexy_level = 2
     long_mode = True
 
-    # 画像パス（なければ None）
-    image_path = None
-    # image_path = "sample.jpg"
+    # 画像があるならパス指定
+    image_path = None  # 例: "sample.jpg"
 
     result = generate_all(
         profile,
