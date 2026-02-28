@@ -1,10 +1,10 @@
 import google.generativeai as genai
-import os
 
 # ==========================
 # APIキー設定
 # ==========================
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key="YOUR_API_KEY")
+
 model = genai.GenerativeModel("models/gemini-2.5-flash")
 
 # ==========================
@@ -33,7 +33,7 @@ def sexiness_to_text(level: int):
     return sex_map.get(level, sex_map[0])
 
 # ==========================
-# 共通生成関数（変更なし・安全化のみ）
+# 共通生成関数（元仕様そのまま）
 # ==========================
 def generate_text(prompt, max_tokens=1000):
     response = model.generate_content(
@@ -57,7 +57,6 @@ def generate_self_intro(profile, tone_level=3, sexy_level=0, long_mode=False):
 
     prompt = f"""
 あなたは以下の女性です。
-
 {profile}
 
 【雰囲気設定】
@@ -91,7 +90,6 @@ def generate_attack(profile, tone_level=3, sexy_level=1, long_mode=False):
 
     prompt = f"""
 あなたは以下の女性です。
-
 {profile}
 
 【雰囲気設定】
@@ -122,7 +120,6 @@ def generate_persona_prompt(profile, tone_level=3, sexy_level=0):
 
     prompt = f"""
 以下の女性になりきって会話してください。
-
 {profile}
 
 【雰囲気設定】
@@ -144,15 +141,11 @@ def generate_persona_prompt(profile, tone_level=3, sexy_level=0):
     return generate_text(prompt, 1500)
 
 # ==========================
-# 使用例（ここが重要修正）
+# 使用例
 # ==========================
 if __name__ == "__main__":
 
-    run = input("生成を実行しますか？ (y/n): ")
-
-    if run.lower() == "y":
-
-        profile = """
+    profile = """
 年齢：48歳（1978年10月17日生まれ）
 職業：事務職または広報
 趣味：カフェ巡り、読書、映画鑑賞、旅行
@@ -161,18 +154,15 @@ if __name__ == "__main__":
 顔文字：😉😊✨☕️💕
 """
 
-        tone_level = 4
-        sexy_level = 2
-        long_mode = True
+    tone_level = 4
+    sexy_level = 2
+    long_mode = True
 
-        print("📝 自己紹介\n")
-        print(generate_self_intro(profile, tone_level, sexy_level, long_mode))
+    print("📝 自己紹介\n")
+    print(generate_self_intro(profile, tone_level, sexy_level, long_mode))
 
-        print("\n💌 アタック文\n")
-        print(generate_attack(profile, tone_level, sexy_level, long_mode))
+    print("\n💌 アタック文\n")
+    print(generate_attack(profile, tone_level, sexy_level, long_mode))
 
-        print("\n🤖 AI人格プロンプト\n")
-        print(generate_persona_prompt(profile, tone_level, sexy_level))
-
-    else:
-        print("生成を実行しませんでした。")
+    print("\n🤖 AI人格プロンプト\n")
+    print(generate_persona_prompt(profile, tone_level, sexy_level))
