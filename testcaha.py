@@ -1,16 +1,16 @@
 import google.generativeai as genai
-import streamlit as st
-import os 
+
 # ==========================
 # APIキー設定
 # ==========================
-genai.configure(api_key="GEMINI_API_KEY")
-model = genai.GenerativeModel("gemini-2.5-flash")
+def configure_api():
+    genai.configure(api_key="YOUR_API_KEY")
+    return genai.GenerativeModel("models/gemini-2.5-flash")
 
 # ==========================
 # 雰囲気レベル変換
 # ==========================
-def tone_level_to_text(level: int) -> str:
+def tone_level_to_text(level: int):
     tone_map = {
         1: "非常に落ち着き重視。感情表現は最小限。",
         2: "やや控えめ。上品で穏やか。",
@@ -23,7 +23,7 @@ def tone_level_to_text(level: int) -> str:
 # ==========================
 # 色気レベル変換
 # ==========================
-def sexiness_to_text(level: int) -> str:
+def sexiness_to_text(level: int):
     sex_map = {
         0: "色気は出さない。",
         1: "ほんのり大人の余裕を感じさせる。",
@@ -33,9 +33,9 @@ def sexiness_to_text(level: int) -> str:
     return sex_map.get(level, sex_map[0])
 
 # ==========================
-# 共通生成関数（API呼び出し）
+# 共通生成関数（安定仕様）
 # ==========================
-def generate_text(prompt: str, max_tokens: int = 1000) -> str:
+def generate_text(model, prompt, max_tokens=1000):
     response = model.generate_content(
         prompt,
         generation_config={
@@ -49,8 +49,7 @@ def generate_text(prompt: str, max_tokens: int = 1000) -> str:
 # ==========================
 # 自己紹介生成
 # ==========================
-def generate_self_intro(profile: str, tone_level: int = 3,
-                        sexy_level: int = 0, long_mode: bool = False) -> str:
+def generate_self_intro(model, profile, tone_level=3, sexy_level=0, long_mode=False):
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
     length_instruction = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
@@ -76,13 +75,12 @@ def generate_self_intro(profile: str, tone_level: int = 3,
 自己紹介を書いてください。
 """
     max_tokens = 1500 if long_mode else 800
-    return generate_text(prompt, max_tokens)
+    return generate_text(model, prompt, max_tokens)
 
 # ==========================
 # アタック文生成
 # ==========================
-def generate_attack(profile: str, tone_level: int = 3,
-                    sexy_level: int = 1, long_mode: bool = False) -> str:
+def generate_attack(model, profile, tone_level=3, sexy_level=1, long_mode=False):
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
     length_instruction = "400〜600文字。" if long_mode else "200〜350文字。"
@@ -107,13 +105,12 @@ def generate_attack(profile: str, tone_level: int = 3,
 魅力的な初回メッセージを書いてください。
 """
     max_tokens = 1200 if long_mode else 600
-    return generate_text(prompt, max_tokens)
+    return generate_text(model, prompt, max_tokens)
 
 # ==========================
 # AI人格プロンプト生成
 # ==========================
-def generate_persona_prompt(profile: str, tone_level: int = 3,
-                            sexy_level: int = 0) -> str:
+def generate_persona_prompt(model, profile, tone_level=3, sexy_level=0):
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
 
@@ -136,14 +133,19 @@ def generate_persona_prompt(profile: str, tone_level: int = 3,
 
 800文字以上で詳細なAI人格プロンプトを出力してください。
 """
-    return generate_text(prompt, 1500)
+    return generate_text(model, prompt, 1500)
 
 # ==========================
-# 使用例（画像送信時だけ呼ぶ）
+# 使用例（画像があるときのみ実行）
 # ==========================
-if __name__ == "__main__":
-    profile_example = "年齢25歳、趣味はカフェ巡りと映画鑑賞。"
-    is_image_sent = True  # 画像送信判定のフラグ
-    if is_image_sent:
-        intro_text = generate_self_intro(profile_example, tone_level=4, sexy_level=1)
-        print(intro_text)
+def process_image_and_generate(image_data, profile, mode="intro", tone_level=3, sexy_level=0, long_mode=False):
+    model = configure_api()
+
+    if mode == "intro":
+        return generate_self_intro(model, profile, tone_level, sexy_level, long_mode)
+    elif mode == "attack":
+        return generate_attack(model, profile, tone_level, sexy_level, long_mode)
+    elif mode == "persona":
+        return generate_persona_prompt(model, profile, tone_level, sexy_level)
+    else:
+        return "モードが正しくありません。"
