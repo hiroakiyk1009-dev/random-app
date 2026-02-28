@@ -1,10 +1,11 @@
 import google.generativeai as genai
-
+import streamlit as st
+import os 
 # ==========================
 # APIキー設定
 # ==========================
 genai.configure(api_key="GEMINI_API_KEY")
-model = genai.GenerativeModel("models/gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 # ==========================
 # 雰囲気レベル変換
