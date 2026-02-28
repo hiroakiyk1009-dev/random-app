@@ -13,7 +13,7 @@ def configure_api():
 # ==========================
 # キャラメモ生成（名前含めAIに任せる）
 # ==========================
-def generate_character_memo(model, image_data, age):
+def generate_character_memo(model, image_bytes, mime_type, age):
     birth_year = datetime.now().year - age
     birth_date = f"{birth_year}年{random.randint(1,12):02d}月{random.randint(1,28):02d}日"
     blood_types = ["A型", "B型", "O型", "AB型"]
@@ -51,8 +51,13 @@ def generate_character_memo(model, image_data, age):
 【画像の内容をもとに、上記の形式でキャラメモを出力してください】
 """
 
+    image_part = {
+        "mime_type": mime_type,
+        "data": image_bytes
+    }
+
     response = model.generate_content(
-        [prompt, image_data],
+        [prompt, image_part],
         generation_config={
             "temperature": 0.7,
             "top_p": 0.9,
@@ -75,7 +80,8 @@ def main():
             with st.spinner("画像を解析中... 🍄"):
                 model = configure_api()
                 image_bytes = uploaded_file.read()
-                result = generate_character_memo(model, image_bytes, age)
+                mime_type = uploaded_file.type  # 例: "image/jpeg"
+                result = generate_character_memo(model, image_bytes, mime_type, age)
                 st.success("✅ キャラメモ生成完了！")
                 st.text_area("📝 キャラメモ", result, height=400)
         else:
