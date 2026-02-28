@@ -1,10 +1,16 @@
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 import os
+
 # ==========================
 # APIキー設定
 # ==========================
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+api_key = os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    raise ValueError("GEMINI_API_KEY が設定されていません")
+
+genai.configure(api_key=api_key)
 
 model = genai.GenerativeModel("gemini-2.5-flash")
 
@@ -34,14 +40,14 @@ def sexiness_to_text(level: int):
     return sex_map.get(level, sex_map[0])
 
 # ==========================
-# 共通生成関数（InvalidArgument対策のみ修正）
+# 共通生成関数（修正）
 # ==========================
-def generate_text(prompt, max_tokens=1000):
+def generate_text(prompt, max_tokens=400):
 
     config = GenerationConfig(
         temperature=0.8,
         top_p=0.9,
-        max_output_tokens=400
+        max_output_tokens=max_tokens  # ← 修正（固定値400を廃止）
     )
 
     response = model.generate_content(
@@ -81,7 +87,7 @@ def generate_self_intro(profile, tone_level=3, sexy_level=0, long_mode=False):
 自己紹介を書いてください。
 """
 
-    max_tokens = 1500 if long_mode else 800
+    max_tokens = 900 if long_mode else 600
     return generate_text(prompt, max_tokens)
 
 # ==========================
@@ -113,7 +119,7 @@ def generate_attack(profile, tone_level=3, sexy_level=1, long_mode=False):
 魅力的な初回メッセージを書いてください。
 """
 
-    max_tokens = 1200 if long_mode else 600
+    max_tokens = 800 if long_mode else 500
     return generate_text(prompt, max_tokens)
 
 # ==========================
@@ -143,31 +149,10 @@ def generate_persona_prompt(profile, tone_level=3, sexy_level=0):
 800文字以上で詳細なAI人格プロンプトを出力してください。
 """
 
-    return generate_text(prompt, 1500)
+    return generate_text(prompt, 1000)
 
 # ==========================
-# 使用例
+# 使用例（起動時にAPIを呼ばないよう修正）
 # ==========================
 if __name__ == "__main__":
-
-    profile = """
-年齢：48歳（1978年10月17日生まれ）
-職業：事務職または広報
-趣味：カフェ巡り、読書、映画鑑賞、旅行
-休日：友人とランチ、ショッピング、ドライブ
-性格：穏やかで親しみやすい
-顔文字：😉😊✨☕️💕
-"""
-
-    tone_level = 4
-    sexy_level = 2
-    long_mode = True
-
-    print("📝 自己紹介\n")
-    print(generate_self_intro(profile, tone_level, sexy_level, long_mode))
-
-    print("\n💌 アタック文\n")
-    print(generate_attack(profile, tone_level, sexy_level, long_mode))
-
-    print("\n🤖 AI人格プロンプト\n")
-    print(generate_persona_prompt(profile, tone_level, sexy_level))
+    print("このファイルはライブラリとして使用してください。")
