@@ -2,15 +2,13 @@ import streamlit as st
 import google.generativeai as genai
 from datetime import datetime
 import random
-from PIL import Image
-import io
 
 # ==========================
 # APIキー設定
 # ==========================
 def configure_api():
-    genai.configure(api_key="GEMINI_API_KEY")
-    return genai.GenerativeModel("gemini-1.5-pro-vision-latest")
+    genai.configure(api_key="YOUR_API_KEY")
+    return genai.GenerativeModel("models/gemini-1.5-pro-vision-latest")
 
 # ==========================
 # キャラメモ生成
@@ -53,10 +51,16 @@ def generate_character_memo(model, image_bytes, mime_type, age):
 【画像の内容をもとに、上記の形式でキャラメモを出力してください】
 """
 
-    image = Image.open(io.BytesIO(image_bytes))
+    image_part = {
+        "mime_type": mime_type,
+        "data": image_bytes
+    }
 
     response = model.generate_content(
-        [prompt, image],
+        contents=[
+            {"text": prompt},
+            image_part
+        ],
         generation_config={
             "temperature": 0.7,
             "top_p": 0.9,
@@ -72,19 +76,4 @@ def main():
     st.title("📸 キャラメモ生成ツール")
 
     age = st.slider("年齢を選んでください", 20, 70, 30)
-    uploaded_file = st.file_uploader("女性の画像をアップロードしてください", type=["jpg", "jpeg", "png"])
-
-    if st.button("キャラメモを生成"):
-        if uploaded_file:
-            with st.spinner("画像を解析中... 🍄"):
-                model = configure_api()
-                image_bytes = uploaded_file.read()
-                mime_type = uploaded_file.type
-                result = generate_character_memo(model, image_bytes, mime_type, age)
-                st.success("✅ キャラメモ生成完了！")
-                st.text_area("📝 キャラメモ", result, height=400)
-        else:
-            st.warning("画像をアップロードしてください。")
-
-if __name__ == "__main__":
-    main()
+    uploaded_file = st.file_uploader("女性の画像をアップロードしてください", type
