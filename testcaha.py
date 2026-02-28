@@ -95,7 +95,7 @@ def generate_all(profile, tone_level=3, sexy_level=0, long_mode=False, image_pat
     config = GenerationConfig(
         temperature=0.65,
         top_p=0.85,
-        max_output_tokens=1600
+        max_output_tokens=800
     )
 
     # 🔥 API呼び出しは1回のみ
