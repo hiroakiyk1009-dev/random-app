@@ -21,15 +21,6 @@ model = genai.GenerativeModel(
     },
 )
 
-text_model = genai.GenerativeModel(
-    "models/gemini-2.5-flash",
-    generation_config={
-        "temperature": 0.9,
-        "top_p": 0.95,
-        "max_output_tokens": 800,
-    },
-)
-
 st.set_page_config(page_title="AIキャラ生成", layout="wide")
 
 if "character" not in st.session_state:
@@ -96,23 +87,6 @@ def analyze_image(image):
         }
 
 # ==============================
-# 文章生成（前置き禁止）
-# ==============================
-def generate_clean_text(instruction):
-
-    prompt = f"""
-以下の条件で文章のみ出力せよ。
-前置き禁止
-説明禁止
-箇条書き禁止
-
-{instruction}
-"""
-
-    response = text_model.generate_content(prompt)
-    return response.text.strip()
-
-# ==============================
 # UI
 # ==============================
 st.title("💖 AI女性キャラ完全自動生成")
@@ -149,27 +123,6 @@ with col1:
             analysis = analyze_image(image)
             birthday = generate_birthday(age)
 
-            base_info = f"""
-年齢:{age}
-生年月日:{birthday}
-雰囲気:{analysis['雰囲気']}
-職業:{analysis['推定職業']}
-趣味:{analysis['推定趣味']}
-車:{analysis['乗っていそうな車']}
-休日:{analysis['休日の過ごし方']}
-婚歴:{analysis['婚歴']}
-顔文字:{analysis['使いそうな顔文字']}
-好奇心:{curiosity}
-甘え度:{amae}
-理性:{rational}
-包容力:{care}
-積極性:{active}
-"""
-
-            intro = generate_clean_text("女性の自己紹介文を作成\n" + base_info)
-            attack = generate_clean_text("初対面アタック文を作成\n" + base_info)
-            personality = generate_clean_text("AIチャット人格プロンプトを作成\n" + base_info)
-
             charamemo = f"""キャラメモ：
 改行：1行　口調：敬語　本名：AI生成
 年齢：{age}歳（{birthday}生まれ）
@@ -182,10 +135,6 @@ with col1:
 """
 
             st.session_state.character = {
-                "プロフィール": analysis,
-                "自己紹介": intro,
-                "アタック文": attack,
-                "AI人格プロンプト": personality,
                 "キャラメモ": charamemo
             }
 
@@ -204,15 +153,3 @@ if st.session_state.character:
 
     st.markdown("## 📌 キャラメモ")
     st.code(st.session_state.character["キャラメモ"])
-
-    st.markdown("## 👤 プロフィール")
-    st.json(st.session_state.character["プロフィール"])
-
-    st.markdown("## 📝 自己紹介")
-    st.write(st.session_state.character["自己紹介"])
-
-    st.markdown("## 💌 アタック文")
-    st.write(st.session_state.character["アタック文"])
-
-    st.markdown("## 🤖 AI人格プロンプト")
-    st.code(st.session_state.character["AI人格プロンプト"])
