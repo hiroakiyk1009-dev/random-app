@@ -10,7 +10,7 @@ import io
 # ==========================
 def configure_api():
     genai.configure(api_key="YOUR_API_KEY")
-    return genai.GenerativeModel("gemini-2.5-flash")
+    return genai.GenerativeModel("gemini-1.5-pro-latest")
 
 # ==========================
 # キャラメモ生成
