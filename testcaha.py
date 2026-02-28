@@ -1,3 +1,4 @@
+import streamlit as st
 import google.generativeai as genai
 
 # ==========================
@@ -33,7 +34,7 @@ def sexiness_to_text(level: int):
     return sex_map.get(level, sex_map[0])
 
 # ==========================
-# 共通生成関数（安定仕様）
+# 共通生成関数
 # ==========================
 def generate_text(model, prompt, max_tokens=1000):
     response = model.generate_content(
@@ -136,19 +137,45 @@ def generate_persona_prompt(model, profile, tone_level=3, sexy_level=0):
     return generate_text(model, prompt, 1500)
 
 # ==========================
-# 使用例（画像があるときだけ呼び出す）
+# Streamlit UI
 # ==========================
-def run_generation(profile, mode="intro", tone_level=3, sexy_level=0, long_mode=False, image_uploaded=False):
-    if not image_uploaded:
-        return "画像がアップロードされていないため、生成はスキップされました。"
+def main():
+    st.title("✨ AI自己紹介＆メッセージ生成ツール")
 
-    model = configure_api()
+    # 入力欄
+    profile = st.text_area("🌿 プロフィールを入力してください", height=150)
+    tone_level = st.slider("🎭 雰囲気レベル（1: 落ち着き〜5: 感情豊か）", 1, 5, 3)
+    sexy_level = st.slider("💫 色気レベル（0: 出さない〜3: 魅力的）", 0, 3, 0)
+    long_mode = st.checkbox("📝 長めの文章にする")
 
-    if mode == "intro":
-        return generate_self_intro(model, profile, tone_level, sexy_level, long_mode)
-    elif mode == "attack":
-        return generate_attack(model, profile, tone_level, sexy_level, long_mode)
-    elif mode == "persona":
-        return generate_persona_prompt(model, profile, tone_level, sexy_level)
-    else:
-        return "不明なモードです。"
+    # モード選択
+    mode = st.selectbox("✍️ 生成する内容を選んでください", ["自己紹介", "アタック文", "AI人格プロンプト"])
+
+    # 画像アップロード（トリガー用）
+    uploaded_file = st.file_uploader("📷 画像をアップロードしてください（API呼び出しのトリガーになります）", type=["jpg", "jpeg", "png"])
+
+    if st.button("🌈 生成する"):
+        if not profile.strip():
+            st.warning("プロフィールを入力してください。")
+            return
+
+        if uploaded_file:
+            with st.spinner("生成中...しばらくお待ちください 🍄"):
+                model = configure_api()
+
+                if mode == "自己紹介":
+                    result = generate_self_intro(model, profile, tone_level, sexy_level, long_mode)
+                elif mode == "アタック文":
+                    result = generate_attack(model, profile, tone_level, sexy_level, long_mode)
+                elif mode == "AI人格プロンプト":
+                    result = generate_persona_prompt(model, profile, tone_level, sexy_level)
+                else:
+                    result = "モードが不明です。"
+
+                st.success("✨ 生成完了！")
+                st.text_area("📝 結果", result, height=400)
+        else:
+            st.info("画像がアップロードされていないため、APIは呼び出されません。")
+
+if __name__ == "__main__":
+    main()
