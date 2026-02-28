@@ -76,4 +76,19 @@ def main():
     st.title("📸 キャラメモ生成ツール")
 
     age = st.slider("年齢を選んでください", 20, 70, 30)
-    uploaded_file = st.file_uploader("女性の画像をアップロードしてください", type
+    uploaded_file = st.file_uploader("女性の画像をアップロードしてください", type=["jpg", "jpeg", "png"])
+
+    if st.button("キャラメモを生成"):
+        if uploaded_file:
+            with st.spinner("画像を解析中... 🍄"):
+                model = configure_api()
+                image_bytes = uploaded_file.read()
+                mime_type = uploaded_file.type
+                result = generate_character_memo(model, image_bytes, mime_type, age)
+                st.success("✅ キャラメモ生成完了！")
+                st.text_area("📝 キャラメモ", result, height=400)
+        else:
+            st.warning("画像をアップロードしてください。")
+
+if __name__ == "__main__":
+    main()
