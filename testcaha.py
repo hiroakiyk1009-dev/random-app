@@ -9,7 +9,7 @@ import io
 # APIキー設定
 # ==========================
 def configure_api():
-    genai.configure(api_key="YOUR_API_KEY")
+    genai.configure(api_key="GEMINI_API_KEY")
     return genai.GenerativeModel("gemini-1.5-pro-vision-latest")
 
 # ==========================
