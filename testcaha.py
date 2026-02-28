@@ -2,18 +2,20 @@ import streamlit as st
 import google.generativeai as genai
 from datetime import datetime
 import random
+from PIL import Image
+import io
 
 # ==========================
 # APIキー設定
 # ==========================
 def configure_api():
     genai.configure(api_key="YOUR_API_KEY")
-    return genai.GenerativeModel("models/gemini-1.5-pro-vision-latest")
+    return genai.GenerativeModel("gemini-2.5-flash")
 
 # ==========================
 # キャラメモ生成
 # ==========================
-def generate_character_memo(model, image_bytes, mime_type, age):
+def generate_character_memo(model, image_bytes, age):
     birth_year = datetime.now().year - age
     birth_date = f"{birth_year}年{random.randint(1,12):02d}月{random.randint(1,28):02d}日"
     blood_types = ["A型", "B型", "O型", "AB型"]
@@ -51,16 +53,11 @@ def generate_character_memo(model, image_bytes, mime_type, age):
 【画像の内容をもとに、上記の形式でキャラメモを出力してください】
 """
 
-    image_part = {
-        "mime_type": mime_type,
-        "data": image_bytes
-    }
+    # PILで画像を開く（RGBモードに変換）
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
     response = model.generate_content(
-        contents=[
-            {"text": prompt},
-            image_part
-        ],
+        [prompt, image],
         generation_config={
             "temperature": 0.7,
             "top_p": 0.9,
@@ -83,8 +80,7 @@ def main():
             with st.spinner("画像を解析中... 🍄"):
                 model = configure_api()
                 image_bytes = uploaded_file.read()
-                mime_type = uploaded_file.type
-                result = generate_character_memo(model, image_bytes, mime_type, age)
+                result = generate_character_memo(model, image_bytes, age)
                 st.success("✅ キャラメモ生成完了！")
                 st.text_area("📝 キャラメモ", result, height=400)
         else:
