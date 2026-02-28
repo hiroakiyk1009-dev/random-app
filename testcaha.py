@@ -1,12 +1,10 @@
 import google.generativeai as genai
 
 # ==========================
-# APIキー設定（必要な時だけ呼ぶ想定）
+# APIキー設定
 # ==========================
-API_KEY = "YOUR_API_KEY"
-
-def configure_api():
-    genai.configure(api_key=API_KEY)
+genai.configure(api_key="GEMINI_API_KEY")
+model = genai.GenerativeModel("models/gemini-2.5-flash")
 
 # ==========================
 # 雰囲気レベル変換
@@ -37,10 +35,6 @@ def sexiness_to_text(level: int) -> str:
 # 共通生成関数（API呼び出し）
 # ==========================
 def generate_text(prompt: str, max_tokens: int = 1000) -> str:
-    # 必要時にAPI設定
-    configure_api()
-    model = genai.GenerativeModel("models/gemini-2.5-flash")
-    
     response = model.generate_content(
         prompt,
         generation_config={
@@ -58,9 +52,8 @@ def generate_self_intro(profile: str, tone_level: int = 3,
                         sexy_level: int = 0, long_mode: bool = False) -> str:
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
-    
     length_instruction = "600〜900文字で詳しく。" if long_mode else "300〜500文字で簡潔に。"
-    
+
     prompt = f"""
 あなたは以下の女性です。
 {profile}
@@ -91,9 +84,8 @@ def generate_attack(profile: str, tone_level: int = 3,
                     sexy_level: int = 1, long_mode: bool = False) -> str:
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
-    
     length_instruction = "400〜600文字。" if long_mode else "200〜350文字。"
-    
+
     prompt = f"""
 あなたは以下の女性です。
 {profile}
@@ -123,7 +115,7 @@ def generate_persona_prompt(profile: str, tone_level: int = 3,
                             sexy_level: int = 0) -> str:
     tone_text = tone_level_to_text(tone_level)
     sexy_text = sexiness_to_text(sexy_level)
-    
+
     prompt = f"""
 以下の女性になりきって会話してください。
 {profile}
@@ -146,12 +138,10 @@ def generate_persona_prompt(profile: str, tone_level: int = 3,
     return generate_text(prompt, 1500)
 
 # ==========================
-# 使用例（必要な時だけ呼ぶ）
+# 使用例（画像送信時だけ呼ぶ）
 # ==========================
 if __name__ == "__main__":
     profile_example = "年齢25歳、趣味はカフェ巡りと映画鑑賞。"
-    
-    # 画像送信時だけ呼びたい場合
     is_image_sent = True  # 画像送信判定のフラグ
     if is_image_sent:
         intro_text = generate_self_intro(profile_example, tone_level=4, sexy_level=1)
