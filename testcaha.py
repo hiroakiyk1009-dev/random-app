@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from datetime import datetime
 import random
+from google.generativeai.types import content_types
 
 # ==========================
 # APIキー設定
@@ -51,10 +52,10 @@ def generate_character_memo(model, image_bytes, mime_type, age):
 【画像の内容をもとに、上記の形式でキャラメモを出力してください】
 """
 
-    image_part = {
-        "mime_type": mime_type,
-        "data": image_bytes
-    }
+    image_part = content_types.ImagePart(
+        mime_type=mime_type,
+        data=image_bytes
+    )
 
     response = model.generate_content(
         [prompt, image_part],
