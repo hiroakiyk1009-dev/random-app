@@ -22,8 +22,14 @@ age_groups = {
 regions = ["完全一緒", "近隣1", "近隣2", "近隣3"]
 region_weights = [44, 44, 10, 2]
 
-# ★追加：用途カテゴリ
+# 用途カテゴリ
 categories = ["マッチル", "出会いチャット", "パートナー"]
+
+# 話し方
+speech_styles = ["敬語", "タメ語"]
+
+# 系統（今はノーマル固定で選択できるように）
+types = ["ノーマル系"]  # 将来増やすならここに追加
 
 # ==============================
 # セッション初期化
@@ -35,7 +41,7 @@ if "favorites" not in st.session_state:
     st.session_state.favorites = []
 
 if "last" not in st.session_state:
-    st.session_state.last = None  # {"time":..., "age":..., "region":..., "category":...}
+    st.session_state.last = None  # {"time":..., "age":..., "region":..., "category":..., "speech":..., "type":...}
 
 # ==============================
 # ユーティリティ
@@ -54,12 +60,13 @@ def random_age():
 def random_region():
     return random.choices(regions, weights=region_weights)[0]
 
-def format_text(t, a, r, c):
-    # 表示フォーマット（用途を先頭に付ける）
-    return f"[{c}] {t}　{a}　{r}"
+def format_text(category, time_str, age_str, region_str, speech, typ):
+    # 指定フォーマット：
+    # 【パートナー】　12：47　65〜69歳　完全一緒　敬語　ノーマル系
+    return f"【{category}】　{time_str}　{age_str}　{region_str}　{speech}　{typ}"
 
-def add_history(t, a, r, c):
-    text = format_text(t, a, r, c)
+def add_history(category, time_str, age_str, region_str, speech, typ):
+    text = format_text(category, time_str, age_str, region_str, speech, typ)
     st.session_state.history.insert(0, text)
     if len(st.session_state.history) > 20:
         st.session_state.history.pop()
@@ -69,9 +76,16 @@ def add_history(t, a, r, c):
 # ==============================
 st.title("ランダム生成アプリ")
 
-# ★追加：用途カテゴリ選択
+# 1) 用途選択
 selected_category = st.radio("用途を選択", categories, horizontal=True)
 
+# 2) 話し方選択
+selected_speech = st.radio("話し方を選択", speech_styles, horizontal=True)
+
+# 3) 系統選択（ノーマル固定で選べるように）
+selected_type = st.selectbox("系統を選択", types, index=0)
+
+# 時間枠選択
 selected_time = st.radio(
     "時間枠を1つ選択（必須）",
     options=list(time_ranges.keys()),
@@ -86,21 +100,36 @@ with btn1:
         t = random_time(start, end)
         a = random_age()
         r = random_region()
-        c = selected_category  # 今選んでいる用途を採用
 
-        st.session_state.last = {"time": t, "age": a, "region": r, "category": c}
-        add_history(t, a, r, c)
+        c = selected_category
+        s = selected_speech
+        typ = selected_type
+
+        st.session_state.last = {
+            "time": t, "age": a, "region": r,
+            "category": c, "speech": s, "type": typ
+        }
+
+        add_history(c, t, a, r, s, typ)
 
 with btn2:
     if st.button("年齢だけチェンジ"):
         if st.session_state.last:
-            t = st.session_state.last["time"]        # 保持
-            r = st.session_state.last["region"]      # 保持
-            c = st.session_state.last["category"]    # 保持
-            a = random_age()                         # 年齢だけ再抽選
+            # 時間・地域・用途・話し方・系統は保持、年齢だけ再抽選
+            t = st.session_state.last["time"]
+            r = st.session_state.last["region"]
+            c = st.session_state.last["category"]
+            s = st.session_state.last["speech"]
+            typ = st.session_state.last["type"]
 
-            st.session_state.last = {"time": t, "age": a, "region": r, "category": c}
-            add_history(t, a, r, c)
+            a = random_age()
+
+            st.session_state.last = {
+                "time": t, "age": a, "region": r,
+                "category": c, "speech": s, "type": typ
+            }
+
+            add_history(c, t, a, r, s, typ)
         else:
             st.warning("先に生成してください")
 
@@ -112,7 +141,7 @@ left, right = st.columns(2)
 with left:
     st.subheader("履歴（最大20件）")
     for i, item in enumerate(st.session_state.history):
-        c1, c2 = st.columns([4, 1])
+        c1, c2 = st.columns([5, 1])
         with c1:
             st.write(item)
         with c2:
@@ -137,7 +166,7 @@ with right:
 st.subheader("直近の結果")
 if st.session_state.last:
     l = st.session_state.last
-    st.write(format_text(l["time"], l["age"], l["region"], l["category"]))
+    st.write(format_text(l["category"], l["time"], l["age"], l["region"], l["speech"], l["type"]))
 else:
     st.write("まだ生成されていません")
 
