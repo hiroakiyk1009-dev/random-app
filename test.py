@@ -22,6 +22,9 @@ age_groups = {
 regions = ["完全一緒", "近隣1", "近隣2", "近隣3"]
 region_weights = [44, 44, 10, 2]
 
+# ★追加：用途カテゴリ
+categories = ["マッチル", "出会いチャット", "パートナー"]
+
 # ==============================
 # セッション初期化
 # ==============================
@@ -32,7 +35,7 @@ if "favorites" not in st.session_state:
     st.session_state.favorites = []
 
 if "last" not in st.session_state:
-    st.session_state.last = None
+    st.session_state.last = None  # {"time":..., "age":..., "region":..., "category":...}
 
 # ==============================
 # ユーティリティ
@@ -51,8 +54,12 @@ def random_age():
 def random_region():
     return random.choices(regions, weights=region_weights)[0]
 
-def add_history(t, a, r):
-    text = f"{t}　{a}　{r}"
+def format_text(t, a, r, c):
+    # 表示フォーマット（用途を先頭に付ける）
+    return f"[{c}] {t}　{a}　{r}"
+
+def add_history(t, a, r, c):
+    text = format_text(t, a, r, c)
     st.session_state.history.insert(0, text)
     if len(st.session_state.history) > 20:
         st.session_state.history.pop()
@@ -61,6 +68,9 @@ def add_history(t, a, r):
 # UI
 # ==============================
 st.title("ランダム生成アプリ")
+
+# ★追加：用途カテゴリ選択
+selected_category = st.radio("用途を選択", categories, horizontal=True)
 
 selected_time = st.radio(
     "時間枠を1つ選択（必須）",
@@ -76,17 +86,21 @@ with btn1:
         t = random_time(start, end)
         a = random_age()
         r = random_region()
-        st.session_state.last = {"time": t, "age": a, "region": r}
-        add_history(t, a, r)
+        c = selected_category  # 今選んでいる用途を採用
+
+        st.session_state.last = {"time": t, "age": a, "region": r, "category": c}
+        add_history(t, a, r, c)
 
 with btn2:
     if st.button("年齢だけチェンジ"):
         if st.session_state.last:
-            t = st.session_state.last["time"]
-            r = st.session_state.last["region"]
-            a = random_age()
-            st.session_state.last = {"time": t, "age": a, "region": r}
-            add_history(t, a, r)
+            t = st.session_state.last["time"]        # 保持
+            r = st.session_state.last["region"]      # 保持
+            c = st.session_state.last["category"]    # 保持
+            a = random_age()                         # 年齢だけ再抽選
+
+            st.session_state.last = {"time": t, "age": a, "region": r, "category": c}
+            add_history(t, a, r, c)
         else:
             st.warning("先に生成してください")
 
@@ -123,10 +137,21 @@ with right:
 st.subheader("直近の結果")
 if st.session_state.last:
     l = st.session_state.last
-    st.write(f"{l['time']}　{l['age']}　{l['region']}")
+    st.write(format_text(l["time"], l["age"], l["region"], l["category"]))
 else:
     st.write("まだ生成されていません")
 
-if st.button("履歴クリア"):
-    st.session_state.history = []
-    st.session_state.last = None
+# ==============================
+# クリア系
+# ==============================
+col_clear1, col_clear2 = st.columns(2)
+with col_clear1:
+    if st.button("履歴クリア"):
+        st.session_state.history = []
+        st.session_state.last = None
+
+with col_clear2:
+    if st.button("お気に入りも含め全クリア"):
+        st.session_state.history = []
+        st.session_state.favorites = []
+        st.session_state.last = None
