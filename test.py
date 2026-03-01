@@ -22,9 +22,15 @@ age_groups = {
 regions = ["完全一緒", "近隣1", "近隣2", "近隣3"]
 region_weights = [44, 44, 10, 2]
 
-# 履歴保存（セッション管理）
+# ==============================
+# セッション初期化
+# ==============================
 if "history" not in st.session_state:
     st.session_state.history = []
+
+# 直近生成を保持する入れ物（時間・地域・年齢）
+if "last" not in st.session_state:
+    st.session_state.last = None
 
 # --- ランダム時間生成 ---
 def random_time(start, end):
@@ -41,6 +47,19 @@ def random_time(start, end):
     result = start_dt + timedelta(minutes=random_minute)
     return result.strftime("%H:%M")
 
+def random_age():
+    age_group = random.choice(list(age_groups.keys()))
+    return random.choice(age_groups[age_group])
+
+def random_region():
+    return random.choices(regions, weights=region_weights)[0]
+
+def add_history(time_str, age_str, region_str):
+    result_text = f"{time_str}　{age_str}　{region_str}"
+    st.session_state.history.insert(0, result_text)
+    if len(st.session_state.history) > 20:
+        st.session_state.history.pop()
+
 # --- 画面 ---
 st.title("ランダム生成アプリ")
 
@@ -50,27 +69,56 @@ selected_time = st.radio(
     format_func=lambda x: f"{time_ranges[x][0]}〜{time_ranges[x][1]}"
 )
 
-if st.button("生成する"):
+col1, col2 = st.columns(2)
 
-    start, end = time_ranges[selected_time]
-    rand_time = random_time(start, end)
+# ==============================
+# ① 通常生成（時間・年齢・地域すべて生成）
+# ==============================
+with col1:
+    if st.button("生成する"):
+        start, end = time_ranges[selected_time]
+        t = random_time(start, end)
+        a = random_age()
+        r = random_region()
 
-    age_group = random.choice(list(age_groups.keys()))
-    rand_age = random.choice(age_groups[age_group])
+        # 直近生成を保持
+        st.session_state.last = {"time": t, "age": a, "region": r}
 
-    rand_region = random.choices(regions, weights=region_weights)[0]
+        add_history(t, a, r)
 
-    result_text = f"{rand_time}　{rand_age}　{rand_region}"
+# ==============================
+# ② 年齢だけチェンジ（時間と地域は保持）
+# ==============================
+with col2:
+    if st.button("年齢だけチェンジ"):
+        if st.session_state.last is None:
+            st.warning("先に「生成する」を押して、1回生成してください。")
+        else:
+            t = st.session_state.last["time"]      # 保持
+            r = st.session_state.last["region"]    # 保持
+            a = random_age()                       # 年齢だけ再抽選
 
-    st.session_state.history.insert(0, result_text)
+            # 直近生成を更新（時間・地域はそのまま、年齢だけ更新）
+            st.session_state.last = {"time": t, "age": a, "region": r}
 
-    if len(st.session_state.history) > 20:
-        st.session_state.history.pop()
+            add_history(t, a, r)
 
+# ==============================
+# 直近の結果表示（分かりやすく）
+# ==============================
+st.subheader("直近の結果")
+if st.session_state.last:
+    st.write(f"{st.session_state.last['time']}　{st.session_state.last['age']}　{st.session_state.last['region']}")
+else:
+    st.write("まだ生成されていません")
+
+# ==============================
 # 履歴表示
+# ==============================
 st.subheader("履歴（最大20件）")
 for item in st.session_state.history:
     st.write(item)
 
 if st.button("履歴クリア"):
     st.session_state.history = []
+    st.session_state.last = None
