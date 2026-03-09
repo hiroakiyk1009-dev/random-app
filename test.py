@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 # ==============================
 # データ
 # ==============================
-
 time_ranges = {
     1: ("8:15", "10:30"),
     2: ("10:31", "13:30"),
@@ -27,13 +26,12 @@ regions = ["完全一緒", "近隣１", "近隣２", "近隣３"]
 region_weights = [44, 44, 10, 2]
 
 categories = ["マッチル", "出会いチャット", "パートナー"]
-
 types = ["ノーマル系", "⚠️来月アポ系"]
+speech_styles = ["敬語", "タメ語"]
 
 # ==============================
-# セッション
+# セッション初期化
 # ==============================
-
 if "history" not in st.session_state:
     st.session_state.history = []
 
@@ -46,9 +44,15 @@ if "last" not in st.session_state:
 if "speech_style" not in st.session_state:
     st.session_state.speech_style = "敬語"
 
+# 年齢の重複防止用
+if "used_ages" not in st.session_state:
+    st.session_state.used_ages = []
+
 # ==============================
 # 関数
 # ==============================
+def to_fullwidth_colon(text: str) -> str:
+    return text.replace(":", "：")
 
 def random_time(start, end):
     fmt = "%H:%M"
@@ -60,14 +64,36 @@ def random_time(start, end):
         end_dt = datetime.strptime(end, fmt)
 
     delta = end_dt - start_dt
-    rand = random.randint(0, int(delta.total_seconds() // 60))
-    result = start_dt + timedelta(minutes=rand)
+    rand_minutes = random.randint(0, int(delta.total_seconds() // 60))
+    result = start_dt + timedelta(minutes=rand_minutes)
+    return to_fullwidth_colon(result.strftime("%H:%M"))
 
-    return result.strftime("%H:%M").replace(":", "：")
+def get_all_ages():
+    all_ages = []
+    for group in age_groups.values():
+        all_ages.extend(group)
+    return all_ages
 
-def random_age():
-    g = random.choice(list(age_groups.keys()))
-    return random.choice(age_groups[g])
+def random_age(exclude_age=None):
+    all_ages = get_all_ages()
+
+    # まだ未使用の年齢候補だけ使う
+    available = [a for a in all_ages if a not in st.session_state.used_ages]
+
+    # 年齢だけチェンジ時に、直前と同じ年齢は除外
+    if exclude_age:
+        available = [a for a in available if a != exclude_age]
+
+    # 候補が尽きたら一巡完了 → リセット
+    if not available:
+        st.session_state.used_ages = []
+        available = all_ages[:]
+        if exclude_age:
+            available = [a for a in available if a != exclude_age]
+
+    selected = random.choice(available)
+    st.session_state.used_ages.append(selected)
+    return selected
 
 def random_region():
     return random.choices(regions, weights=region_weights)[0]
@@ -75,66 +101,64 @@ def random_region():
 def parse_code(text):
     if not text:
         return ""
-    m = re.search(r"\d{4}", text)
-    return m.group(0) if m else ""
+    match = re.search(r"(\d{4})", text)
+    return match.group(1) if match else ""
 
-def format_output(cat, code, time, age, region, speech, typ):
-
-    reg = f"登録〜{code}" if code else ""
-    reg_time = "0：00" if code else ""
+def format_output(category, code, time_str, age_str, region_str, speech, typ):
+    register_text = f"登録〜{code}" if code else ""
+    register_time = "0：00" if code else ""
 
     parts = [
-        f"【{cat}】",
+        f"【{category}】",
         code,
-        time,
-        age,
-        region,
+        time_str,
+        age_str,
+        region_str,
         speech,
         typ,
-        reg,
-        reg_time,
+        register_text,
+        register_time,
         ""
     ]
-
     return "　".join(parts)
+
+def add_history(category, code, time_str, age_str, region_str, speech, typ):
+    text = format_output(category, code, time_str, age_str, region_str, speech, typ)
+    st.session_state.history.insert(0, text)
+
+    if len(st.session_state.history) > 20:
+        st.session_state.history.pop()
 
 # ==============================
 # UI
 # ==============================
-
 st.title("ランダム生成アプリ")
 
-code_raw = st.text_input("＜0228用＞コード入力（任意）")
+code_raw = st.text_input("＜0228用＞コード入力（任意）", placeholder="例：＜0228用＞")
 code = parse_code(code_raw)
 
-# 用途
-category = st.radio("用途", categories, horizontal=True)
+selected_category = st.radio("用途", categories, horizontal=True)
 
-# 話し方
 st.subheader("話し方")
+col_a, col_b, col_c = st.columns(3)
 
-c1,c2,c3 = st.columns(3)
-
-with c1:
+with col_a:
     if st.button("敬語"):
         st.session_state.speech_style = "敬語"
 
-with c2:
+with col_b:
     if st.button("タメ語"):
         st.session_state.speech_style = "タメ語"
 
-with c3:
+with col_c:
     if st.button("ランダム"):
-        st.session_state.speech_style = random.choice(["敬語","タメ語"])
+        st.session_state.speech_style = random.choice(speech_styles)
 
-speech = st.session_state.speech_style
+selected_speech = st.session_state.speech_style
+st.write(f"現在：**{selected_speech}**")
 
-st.write("現在:", speech)
+selected_type = st.selectbox("系統", types, index=0)
 
-# 系統
-typ = st.selectbox("系統", types)
-
-# 時間枠
 selected_time = st.radio(
     "時間枠",
     options=list(time_ranges.keys()),
@@ -142,42 +166,40 @@ selected_time = st.radio(
 )
 
 # ==============================
-# ボタン
+# 生成ボタン
 # ==============================
+btn1, btn2 = st.columns(2)
 
-b1,b2 = st.columns(2)
-
-with b1:
+with btn1:
     if st.button("生成する"):
-
-        start,end = time_ranges[selected_time]
-
-        t = random_time(start,end)
+        start, end = time_ranges[selected_time]
+        t = random_time(start, end)
         a = random_age()
         r = random_region()
 
         st.session_state.last = {
-            "time":t,
-            "age":a,
-            "region":r,
-            "category":category,
-            "speech":speech,
-            "type":typ,
-            "code":code
+            "time": t,
+            "age": a,
+            "region": r,
+            "category": selected_category,
+            "speech": selected_speech,
+            "type": selected_type,
+            "code": code,
         }
 
-        text = format_output(category,code,t,a,r,speech,typ)
+        add_history(
+            selected_category,
+            code,
+            t,
+            a,
+            r,
+            selected_speech,
+            selected_type,
+        )
 
-        st.session_state.history.insert(0,text)
-
-        if len(st.session_state.history) > 20:
-            st.session_state.history.pop()
-
-with b2:
+with btn2:
     if st.button("年齢だけチェンジ"):
-
         if st.session_state.last:
-
             l = st.session_state.last
 
             t = l["time"]
@@ -187,58 +209,58 @@ with b2:
             typ = l["type"]
             code_keep = l["code"]
 
-            a = random_age()
+            # 直前と同じ年齢は除外
+            a = random_age(exclude_age=l["age"])
 
-            text = format_output(c,code_keep,t,a,r,s,typ)
+            st.session_state.last = {
+                "time": t,
+                "age": a,
+                "region": r,
+                "category": c,
+                "speech": s,
+                "type": typ,
+                "code": code_keep,
+            }
 
-            st.session_state.history.insert(0,text)
-
-            if len(st.session_state.history) > 20:
-                st.session_state.history.pop()
+            add_history(c, code_keep, t, a, r, s, typ)
+        else:
+            st.warning("先に生成してください")
 
 # ==============================
-# 履歴 & お気に入り
+# 履歴 / お気に入り
 # ==============================
-
-left,right = st.columns([4,2])
+left, right = st.columns([4, 2])
 
 with left:
-
     st.subheader("履歴")
+    for i, item in enumerate(st.session_state.history):
+        row_left, row_right = st.columns([8, 1])
 
-    for i,item in enumerate(st.session_state.history):
-
-        c1,c2 = st.columns([8,1])
-
-        with c1:
+        with row_left:
             st.write(item)
 
-        with c2:
-            if st.button("★",key=f"fav{i}"):
-
+        with row_right:
+            if st.button("★", key=f"fav_{i}"):
                 if item not in st.session_state.favorites:
                     st.session_state.favorites.append(item)
 
 with right:
-
     st.subheader("気に入ったもの")
-
-    for fav in st.session_state.favorites:
-        st.write(fav)
+    if st.session_state.favorites:
+        for fav in st.session_state.favorites:
+            st.write(fav)
+    else:
+        st.write("まだありません")
 
     if st.button("お気に入りクリア"):
         st.session_state.favorites = []
 
 # ==============================
-# 直近結果
+# 直近生成
 # ==============================
-
 st.subheader("直近生成")
-
 if st.session_state.last:
-
     l = st.session_state.last
-
     st.write(
         format_output(
             l["category"],
@@ -247,22 +269,27 @@ if st.session_state.last:
             l["age"],
             l["region"],
             l["speech"],
-            l["type"]
+            l["type"],
         )
     )
+else:
+    st.write("まだ生成されていません")
 
 # ==============================
 # クリア
 # ==============================
+clear1, clear2 = st.columns(2)
 
-c1,c2 = st.columns(2)
-
-with c1:
+with clear1:
     if st.button("履歴クリア"):
         st.session_state.history = []
+        st.session_state.last = None
+        st.session_state.used_ages = []
 
-with c2:
+with clear2:
     if st.button("全クリア"):
         st.session_state.history = []
         st.session_state.favorites = []
         st.session_state.last = None
+        st.session_state.used_ages = []
+        st.session_state.speech_style = "敬語"
